@@ -1,103 +1,113 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+
+import WorldScene from "@/components/scene/WorldScene";
+//const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
+type ShootHandle = { shoot: () => void; clear: () => void; };
+import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
+
+export default function Page() {
+  const [world, setWorld] = useState<WorldDef>(WORLDS[0]);
+  const [object, setObject] = useState<ObjectDef>(OBJECTS[0]);
+  const [speed, setSpeed] = useState<number>(18);
+  const shootRef = useRef<ShootHandle | null>(null);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="relative h-dvh w-dvw bg-black">
+      {/* 3D */}
+      <WorldScene
+        world={world}
+        object={object}
+        shootSink={shootRef} projectileSpeed={speed}
+      />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Overlay UI */}
+      <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/70 p-4 text-sm text-zinc-100 backdrop-blur">
+        <h1 className="text-base font-semibold">Splat Shooter</h1>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase text-zinc-400">World</span>
+            <select
+              className="rounded bg-zinc-800 px-2 py-1 outline-none"
+              value={world.id}
+              onChange={(e) => {
+                const w = WORLDS.find((x) => x.id === e.target.value)!;
+                setWorld(w);
+              }}
+            >
+              {WORLDS.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase text-zinc-400">Object</span>
+             <select
+              className="rounded bg-zinc-800 px-2 py-1 outline-none"
+              value={object.id}
+              onChange={(e) => {
+                const o = OBJECTS.find((x) => x.id === e.target.value)!;
+                setObject(o);
+              }}
+            >
+              {OBJECTS.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select> 
+          </label>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <label className="flex items-center gap-3">
+          <span className="text-xs uppercase text-zinc-400">Speed</span>
+          <input
+            type="range" min={2} max={40} step={1}
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            className="w-full"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <span className="w-10 text-right tabular-nums">{speed}</span>
+        </label>
+
+        <div className="flex gap-3">
+          <button
+            className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium hover:bg-emerald-500"
+            onClick={() => shootRef.current?.shoot()}
+          >
+            Shoot (Space)
+          </button>
+          <button
+            className="rounded bg-zinc-800 px-3 py-2 text-sm hover:bg-zinc-700"
+            onClick={() => shootRef.current?.clear()}
+          >
+            Clear
+          </button>
+        </div>
+
+        <p className="text-xs text-zinc-400">
+          Mouse: LMB orbit, MMB pan, RMB dolly. Keyboard: W/A/S/D truck/forward, Q/E dolly.
+        </p>
+      </div>
+
+      {/* keyboard shortcut for shoot */}
+      <ShootHotkey shootRef={shootRef} />
     </div>
   );
+}
+
+function ShootHotkey({ shootRef }: { shootRef: React.RefObject<ShootHandle | null> }) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        shootRef.current?.shoot();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [shootRef]);
+  return null;
 }
