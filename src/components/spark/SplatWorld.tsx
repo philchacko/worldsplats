@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
-import { SplatMesh } from '@sparkjsdev/spark';
+import type { SplatMesh } from '@sparkjsdev/spark';
 
 type Props = {
   url: string;
@@ -22,6 +22,10 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSplatMesh = useCallback(async () => {
+    // token to ignore stale async completions
+    const loadToken = crypto.randomUUID();
+    (loadSplatMesh as unknown as { currentToken?: string }).currentToken = loadToken;
+
     setLoadError(null);
     setIsLoading(true);
 
@@ -41,9 +45,11 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
       console.log(`Loading splat mesh from: ${url}`);
         
         // Check if URL is accessible (for local files)
+        let abortController: AbortController | null = null;
         if (url.startsWith('/')) {
           try {
-            const response = await fetch(url, { method: 'HEAD' });
+            abortController = new AbortController();
+            const response = await fetch(url, { method: 'HEAD', signal: abortController.signal });
             if (!response.ok) {
               throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
             }
@@ -55,6 +61,13 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
           }
         }
 
+        // If a newer call started, bail out before heavy work
+        if ((loadSplatMesh as unknown as { currentToken?: string }).currentToken !== loadToken) {
+          abortController?.abort();
+          return;
+        }
+
+        const { SplatMesh } = await import('@sparkjsdev/spark');
         const mesh = new SplatMesh({ url });
         meshRef.current = mesh;
         const t1 = performance.now();
@@ -63,7 +76,11 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
           await mesh.initialized;
           const t2 = performance.now();
           
-          if (!meshRef.current) return;
+          // If a newer load started or component unmounted, dispose and stop
+          if ((loadSplatMesh as unknown as { currentToken?: string }).currentToken !== loadToken || !meshRef.current) {
+            try { mesh.dispose?.(); } catch {}
+            return;
+          }
           
           console.log('Splat mesh initialized successfully', { createMs: Math.round(t1 - t0), initMs: Math.round(t2 - t1) });
           
@@ -106,6 +123,8 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
     window.addEventListener('webgl-context-restored', handleContextRestored);
 
     return () => {
+      // Invalidate any in-flight load calls by bumping the token
+      (loadSplatMesh as unknown as { currentToken?: string }).currentToken = crypto.randomUUID();
       window.removeEventListener('webgl-context-restored', handleContextRestored);
       if (meshRef.current) {
         scene.remove(meshRef.current);

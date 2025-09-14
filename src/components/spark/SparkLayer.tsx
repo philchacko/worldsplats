@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
-import { SparkRenderer } from '@sparkjsdev/spark';
+import type { SparkRenderer } from '@sparkjsdev/spark';
 
 /**
  * Adds a SparkRenderer and parents it to the camera.
@@ -15,7 +15,7 @@ export default function SparkLayer() {
   const SPARK_TAG = '__spark_attached__' as const;
   const contextLostRef = useRef(false);
 
-  const initializeSparkRenderer = useCallback(() => {
+  const initializeSparkRenderer = useCallback(async () => {
     try {
       // Clean up existing renderer if it exists
       if (sparkRef.current) {
@@ -30,6 +30,7 @@ export default function SparkLayer() {
       }
 
       // Create SparkRenderer with the existing WebGL context (conservative settings)
+      const { SparkRenderer } = await import('@sparkjsdev/spark');
       const spark = new SparkRenderer({
         renderer: gl,
         // Lower splat pixel radius to reduce overdraw and memory pressure

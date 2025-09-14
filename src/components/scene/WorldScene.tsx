@@ -96,7 +96,7 @@ function SceneInner({
 
       {/* Spark renderer + the current Splat world */}
       <SparkLayer />
-      <SplatWorld url={world.url} position={world.position} quaternion={world.quaternion} scale={world.scale} />
+      <SplatWorld key={world.url} url={world.url} position={world.position} quaternion={world.quaternion} scale={world.scale} />
 
       {/* Usual lighting for mesh-based objects */}
       <ambientLight intensity={0.5} />
@@ -145,7 +145,7 @@ export default function WorldScene({
         // Power preference for better compatibility
         powerPreference: "high-performance"
       }}
-      dpr={[1, Math.min(1.5, window.devicePixelRatio || 1)]}
+      dpr={[1, Math.min(1.5, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1)]}
       // Disable shadows for now to reduce GPU pressure
       shadows={false}
       camera={{ fov: 60, near: 0.1, far: 1000, position: [0, 1.2, 3] }}

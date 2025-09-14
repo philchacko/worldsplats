@@ -37,7 +37,7 @@ export const WORLDS: WorldDef[] = [
     url: 'https://sparkjs.dev/assets/splats/butterfly.spz',
     position: [0, 0, -3],
     // Spark quickstart rotates X by 180°; optional. You can experiment per asset.
-    // quaternion: [1, 0, 0, 0],
+    quaternion: [1, 0, 0, 0],
     scale: 1,
   },
   {
@@ -45,6 +45,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Simpsons World',
     url: '/worlds/simpsons.spz',
     position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
     scale: 1,
   }
   // Add more here, e.g. your own hosted .spz files under /public/splats/*.spz
