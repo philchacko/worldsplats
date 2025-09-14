@@ -2,13 +2,12 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { CameraControls } from '@react-three/drei';
-import { Physics, CuboidCollider, RigidBody } from '@react-three/rapier';
+import Floor from '@/components/environment/Floor';
 import * as THREE from 'three';
 
 import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
-import { Projectile } from '@/components/physics/Projectile';
+import PlayerController from '@/components/controls/PlayerController';
 import type { WorldDef, ObjectDef } from '@/data/presets';
 
 export type ShootHandle = {
@@ -37,30 +36,12 @@ function SceneInner({
   shootSink,
   projectileSpeed = 18 }: Props) {
   const { camera } = useThree();
-  const controls = useRef<CameraControls>(null);
   const [spawned, setSpawned] = useState<Spawned[]>([]);
   const speedRef = useRef(projectileSpeed);
 
   useEffect(() => {
     speedRef.current = projectileSpeed;
   }, [projectileSpeed]);
-
-  // Keyboard nudges (WASD = truck/dolly)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!controls.current) return;
-      const c = controls.current;
-      const step = (e.shiftKey ? 1.0 : 0.4);
-      if (e.key === 'w') c.forward(step, true);
-      if (e.key === 's') c.forward(-step, true);
-      if (e.key === 'a') c.truck(-step, 0, true);
-      if (e.key === 'd') c.truck(step, 0, true);
-      if (e.key === 'q') c.dolly(-step, true);
-      if (e.key === 'e') c.dolly(step, true);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const shoot = useCallback(() => {
     // Spawn from camera with initial velocity along forward
@@ -79,10 +60,10 @@ function SceneInner({
   const clear = useCallback(() => setSpawned([]), []);
 
   // expose to parent
-  // useEffect(() => {
-  //   shootSink.current = { shoot, clear };
-  //   return () => { shootSink.current = null; };
-  // }, [shoot, clear, shootSink]);
+  useEffect(() => {
+    shootSink.current = { shoot, clear };
+    return () => { shootSink.current = null; };
+  }, [shoot, clear, shootSink]);
 
   // Small ambient move to show motion
   useFrame(() => {
@@ -91,8 +72,11 @@ function SceneInner({
 
   return (
     <>
-      {/* DCC-style navigation */}
-      <CameraControls ref={controls} makeDefault dollyToCursor={true} smoothTime={0.15} />
+      {/* FPS-style player controls */}
+      <PlayerController />
+
+      {/* Environment collision mesh (visuals only, physics in provider) */}
+      <Floor visible={false} />
 
       {/* Spark renderer + the current Splat world */}
       <SparkLayer />
@@ -102,25 +86,7 @@ function SceneInner({
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-      {/* Note: Environment removed to reduce GPU pressure while debugging context loss */}
-
-      {/* Physics world */}
-      <Physics gravity={[0, -9.81, 0]}>
-        {/* A big invisible ground so things don’t fall forever */}
-        <RigidBody type="fixed" colliders={false}>
-          <CuboidCollider args={[200, 0.1, 200]} position={[0, -2, 0]} />
-        </RigidBody>
-
-        {/* Render all spawned projectiles */}
-        {spawned.map((s) => (
-          <Projectile
-            key={s.id}
-            def={s.def}
-            initialPosition={s.startPos}
-            initialVelocity={s.velocity}
-          />
-        ))}
-      </Physics>
+      {/* TODO: Re-add projectiles using provider-backed physics */}
 
       {/* Optional helpers */}
       {/* <gridHelper args={[100, 100]} /> */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { RapierProvider } from '@/physics';
 
 import WorldScene from "@/components/scene/WorldScene";
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
@@ -17,11 +17,13 @@ export default function Page() {
   return (
     <div className="relative h-dvh w-dvw bg-black">
       {/* 3D */}
-      <WorldScene
-        world={world}
-        object={object}
-        shootSink={shootRef} projectileSpeed={speed}
-      />
+      <RapierProvider>
+        <WorldScene
+          world={world}
+          object={object}
+          shootSink={shootRef} projectileSpeed={speed}
+        />
+      </RapierProvider>
 
       {/* Overlay UI */}
       <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/70 p-4 text-sm text-zinc-100 backdrop-blur">
