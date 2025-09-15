@@ -1,6 +1,7 @@
 export * from "./ChevronLeft";
 export * from "./ChevronRight";
 export * from "./ChevronDown";
+export * from "./ArrowLeft";
 export * from "./Spinner"
 
 export enum IconColor {

@@ -91,7 +91,14 @@ export default function Page() {
         </p>
 
         <Divider />
-        <p className="text-xs text-zinc-200">{world.guide}</p>
+        <div className="space-y-1">
+          <p className="text-xs text-secondary">Prompt image</p>
+          <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-secondary">World guide</p>
+          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
+        </div>
       </div>
 
       {/* Loading overlay */}

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { IconButton } from "@/components/hud/Button";
-import { ChevronLeftLine, ChevronRightLine } from "@/icons";
+import { ArrowLeftLine, ChevronLeftLine, ChevronRightLine } from "@/icons";
 import styles from "./NavHeader.module.css";
 
 type NavHeaderProps = {
@@ -15,7 +15,7 @@ export const NavHeader = ({ title, detail, onBack, onForward }: NavHeaderProps) 
     <div className={clsx(styles.header, "p-1 flex items-center justify-between")}>
       <IconButton
         onClick={onBack}
-        icon={<ChevronLeftLine />}
+        icon={<ArrowLeftLine className="stroke-primary"/>}
         className="focus:outline-none hover:bg-action-hover hover:scale-105 transition-all duration-200"
       />
       <div className="flex flex-col items-center">
@@ -24,7 +24,7 @@ export const NavHeader = ({ title, detail, onBack, onForward }: NavHeaderProps) 
       </div>
       <IconButton
         onClick={onForward}
-        icon={<ChevronRightLine/>}
+        icon={<ArrowLeftLine className="rotate-180 stroke-primary"/>}
         className="focus:outline-none hover:bg-action-hover hover:scale-105 transition-all duration-200"
       />
     </div>

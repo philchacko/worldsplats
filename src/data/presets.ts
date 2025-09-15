@@ -3,6 +3,7 @@ export type WorldDef = {
   id: string;
   name: string;
   url: string;             // .spz or .ply (Spark auto-detects)
+  imageUrl: string;
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
@@ -45,6 +46,7 @@ export const WORLDS: WorldDef[] = [
     id: 'forest-retreat',
     name: 'Forest Retreat',
     url: '/worlds/foresthouse.spz',
+    imageUrl: '/worlds/foresthouse.jpg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -54,6 +56,7 @@ export const WORLDS: WorldDef[] = [
     id: 'lofi-seaview',
     name: 'Lofi Seaview',
     url: '/worlds/lofistudy_sunset.spz',
+    imageUrl: '/worlds/lofistudy_sunset.jpg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -63,6 +66,7 @@ export const WORLDS: WorldDef[] = [
     id: 'mainstreet-night',
     name: 'Mainstreet (Night)',
     url: '/worlds/mainstreet_night.spz',
+    imageUrl: '/worlds/mainstreet_night.jpg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -72,6 +76,7 @@ export const WORLDS: WorldDef[] = [
     id: 'rural-retreat',
     name: 'Rural Retreat',
     url: '/worlds/paddies.spz',
+    imageUrl: '/worlds/paddies.jpg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -81,6 +86,7 @@ export const WORLDS: WorldDef[] = [
     id: 'simpsons',
     name: 'Simpsons World',
     url: '/worlds/simpsons.spz',
+    imageUrl: '/worlds/simpsons.jpeg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -90,6 +96,7 @@ export const WORLDS: WorldDef[] = [
     id: 'european-city-sunset',
     name: 'European City (Sunset)',
     url: '/worlds/europeanurban_sunset.spz',
+    imageUrl: '/worlds/europeanurban_sunset.jpg',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
