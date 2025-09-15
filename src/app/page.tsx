@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { RapierProvider } from '@/physics';
 import { NavHeader } from "@/components/hud/NavHeader";
+import { Button, ButtonProminence } from "@/components/hud/Button";
 
 import WorldScene from "@/components/scene/WorldScene";
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
@@ -22,7 +23,7 @@ export default function Page() {
     if (currentIndex > 0) {
       setWorld(WORLDS[currentIndex - 1]);
     } else {
-      setWorld(WORLDS[0]);
+      setWorld(WORLDS[WORLDS.length - 1]);
     }
   };
 
@@ -55,42 +56,8 @@ export default function Page() {
           onForward={handleForward}
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase text-zinc-400">World</span>
-            <select
-              className="rounded bg-zinc-800 px-2 py-1 outline-none"
-              value={world.id}
-              onChange={(e) => {
-                const w = WORLDS.find((x) => x.id === e.target.value)!;
-                setWorld(w);
-              }}
-            >
-              {WORLDS.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </select>
-          </label>
-
-          {/* <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase text-zinc-400">Object</span>
-             <select
-              className="rounded bg-zinc-800 px-2 py-1 outline-none"
-              value={object.id}
-              onChange={(e) => {
-                const o = OBJECTS.find((x) => x.id === e.target.value)!;
-                setObject(o);
-              }}
-            >
-              {OBJECTS.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select> 
-          </label> */}
-        </div>
-
         <label className="flex items-center gap-3">
-          <span className="text-xs uppercase text-zinc-400">Speed</span>
+          <span className="text-xs pr-2">Speed</span>
           <input
             type="range" min={2} max={40} step={1}
             value={speed}
@@ -100,30 +67,33 @@ export default function Page() {
           <span className="w-10 text-right tabular-nums">{speed}</span>
         </label>
 
-        <div className="flex gap-3">
-          <button
-            className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium hover:bg-emerald-500"
+        {/* <div className="flex gap-3">
+          <Button
+            className="rounded bg-elevated px-3 py-2 text-primary text-sm font-medium"
+            label="Shoot (Space)"
+            prominence={ButtonProminence.Primary}
             onClick={() => shootRef.current?.shoot()}
-          >
-            Shoot (Space)
-          </button>
-          <button
-            className="rounded bg-zinc-800 px-3 py-2 text-sm hover:bg-zinc-700"
+          />
+          <Button
+            className="rounded bg-action-primary px-3 py-2 text-sm hover:bg-action-primary-hover"
+            label="Clear"
+            prominence={ButtonProminence.Primary}
             onClick={() => shootRef.current?.clear()}
-          >
-            Clear
-          </button>
-        </div>
+          />
+        </div> */}
 
         <p className="text-xs text-zinc-400">
           Mouse: Look around.
           <br />
-          Keyboard: W/A/S/D truck/forward.
+          Keyboard: W/A/S/D forward, backward, strafe.
+          <br />
+          ←/→ or Q/E: Navigate worlds.
         </p>
       </div>
 
-      {/* keyboard shortcut for shoot */}
+      {/* keyboard shortcuts */}
       <ShootHotkey shootRef={shootRef} />
+      <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
     </div>
   );
 }
@@ -139,5 +109,22 @@ function ShootHotkey({ shootRef }: { shootRef: React.RefObject<ShootHandle | nul
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [shootRef]);
+  return null;
+}
+
+function WorldNavigationHotkeys({ onBack, onForward }: { onBack: () => void; onForward: () => void }) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'ArrowLeft' || e.key === 'q' || e.key === 'Q') {
+        e.preventDefault();
+        onBack();
+      } else if (e.code === 'ArrowRight' || e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        onForward();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onBack, onForward]);
   return null;
 }
