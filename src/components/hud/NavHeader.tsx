@@ -20,7 +20,7 @@ export const NavHeader = ({ title, detail, onBack, onForward }: NavHeaderProps) 
       />
       <div className="flex flex-col items-center">
         <span className={clsx(styles.title)}>{title}</span>
-        <span className="text-secondary text-sm">{detail}</span>
+        <span className="text-secondary text-xs">{detail}</span>
       </div>
       <IconButton
         onClick={onForward}

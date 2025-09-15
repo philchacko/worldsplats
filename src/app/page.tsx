@@ -10,6 +10,12 @@ import WorldScene from "@/components/scene/WorldScene";
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
 
+const Divider = () => {
+  return (
+    <div className="h-0.5 w-full bg-zinc-700"></div>
+  );
+};
+
 export default function Page() {
   const [world, setWorld] = useState<WorldDef>(WORLDS[0]);
   const [object, setObject] = useState<ObjectDef>(OBJECTS[0]);
@@ -57,7 +63,7 @@ export default function Page() {
       </RapierProvider>
 
       {/* Overlay UI */}
-      <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
+      <div className="pointer-events-auto absolute left-4 top-4 space-y-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
         <NavHeader
           title={world.name}
           detail={`${currentIndex + 1} of ${WORLDS.length}`}
@@ -65,8 +71,10 @@ export default function Page() {
           onForward={handleForward}
         />
 
-        <label className="flex items-center gap-3">
-          <span className="text-xs pr-2">Speed</span>
+        <Divider />
+
+        <label className="flex items-center gap-3 text-xs">
+          <span className="pr-4">Speed</span>
           <input
             type="range" min={2} max={40} step={1}
             value={speed}
@@ -76,28 +84,14 @@ export default function Page() {
           <span className="w-10 text-right tabular-nums">{speed}</span>
         </label>
 
-        {/* <div className="flex gap-3">
-          <Button
-            className="rounded bg-elevated px-3 py-2 text-primary text-sm font-medium"
-            label="Shoot (Space)"
-            prominence={ButtonProminence.Primary}
-            onClick={() => shootRef.current?.shoot()}
-          />
-          <Button
-            className="rounded bg-action-primary px-3 py-2 text-sm hover:bg-action-primary-hover"
-            label="Clear"
-            prominence={ButtonProminence.Primary}
-            onClick={() => shootRef.current?.clear()}
-          />
-        </div> */}
-
-        <p className="text-xs text-zinc-400">
-          Mouse: Look around.
+        <p className="text-xs text-secondary">
+          Movement: W/A/S/D + mouse.
           <br />
-          Keyboard: W/A/S/D forward, backward, strafe.
-          <br />
-          ←/→ or Q/E: Navigate worlds.
+          Navigation: ←/→ or Q/E.
         </p>
+
+        <Divider />
+        <p className="text-xs text-zinc-200">{world.guide}</p>
       </div>
 
       {/* Loading overlay */}
