@@ -1,8 +1,7 @@
 import React from "react";
-import { IconProps, strokeClass } from "./";
-import { defaultStrokeClassName } from "./icons.interface";
+import { IconProps, defaultStrokeClassName } from "./icons.interface";
 
-export function ChevronRightLine({ className, color }: IconProps) {
+export function ChevronRightLine({ className }: IconProps) {
   return (
     <svg
       width="24"
@@ -14,7 +13,7 @@ export function ChevronRightLine({ className, color }: IconProps) {
     >
       <path
         d="M9 18L15 12L9 6"
-        className={strokeClass(color)}
+        className={defaultStrokeClassName}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

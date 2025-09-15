@@ -15,8 +15,26 @@ export default function Page() {
   const [speed, setSpeed] = useState<number>(14);
   const shootRef = useRef<ShootHandle | null>(null);
 
+  const handleBack = () => {
+    const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
+    if (currentIndex > 0) {
+      setWorld(WORLDS[currentIndex - 1]);
+    } else {
+      setWorld(WORLDS[0]);
+    }
+  };
+
+  const handleForward = () => {
+    const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
+    if (currentIndex < WORLDS.length - 1) {
+      setWorld(WORLDS[currentIndex + 1]);
+    } else {
+      setWorld(WORLDS[0]);
+    }
+  };
+
   return (
-    <div className="relative h-dvh w-dvw bg-black">
+    <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D */}
       <RapierProvider>
         <WorldScene
@@ -27,8 +45,8 @@ export default function Page() {
       </RapierProvider>
 
       {/* Overlay UI */}
-      <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/70 p-4 text-sm text-zinc-100 backdrop-blur">
-        <NavHeader title={world.name} onBack={() => {}} onForward={() => {}} />
+      <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
+        <NavHeader title={world.name} onBack={handleBack} onForward={handleForward} />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">

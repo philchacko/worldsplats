@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--color-white);
+  --color-secondary: var(--color-gray-400);
+  --color-tertiary: var(--color-gray-500);
+  --color-normal: var(--color-gray-800);
+}
+
+:root {
+  --background: var(--color-black);
+  --foreground: #171717;
+
+  --text-primary: var(--color-white);
+  --text-secondary: var(--color-gray-400);
+  --text-tertiary: var(--color-gray-500);
+  --color-text: var(--color-white);
+  --color-text-light: var(--color-gray-300);
+  --color-text-lighter: var(--color-gray-400);
+  --color-text-lightest: var(--color-gray-500);
+
+  --stroke-primary: var(--color-white);
+  --stroke-secondary: var(--color-gray-400);
+  --stroke-tertiary: var(--color-gray-500);
+
+  --fill-root: var(--color-black);
+  --fill-primary: var(--color-white);
+  --fill-secondary: var(--color-gray-400);
+  --fill-tertiary: var(--color-gray-500);
+
+  --border-normal: var(--color-gray-800);
+  --border-highlighted: var(--color-white);
+  --border-error: var(--color-rose-200);
+  --border-elevated: var(--color-gray-900);
+}
+
+/* @theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+} */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  height: 100%;
+  font-family: "Avenir", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+}

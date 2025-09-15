@@ -11,7 +11,7 @@
 .title {
   font: var(--size-sm);
   font-weight: 500;
-  color: var(--color-text);
+  color: inherit;
 }
 
 .spacer {

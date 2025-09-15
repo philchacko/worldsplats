@@ -11,7 +11,7 @@ type NavHeaderProps = {
 
 export const NavHeader = ({ title, onBack, onForward }: NavHeaderProps) => {
   return (
-    <div className={clsx(styles.header, "p-1 sm:p-4 flex items-center justify-between")}>
+    <div className={clsx(styles.header, "p-1 flex items-center justify-between")}>
       <IconButton
         onClick={onBack}
         icon={<ChevronLeftLine />}
