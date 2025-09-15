@@ -9,13 +9,14 @@ type Props = {
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
+  onLoadingChange?: (isLoading: boolean, error?: string) => void;
 };
 
 /**
  * Imperatively adds a SplatMesh to the scene (simplest interop).
  * You could also "extend" Spark classes to use JSX <primitive />, but this is robust & minimal.
  */
-export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scale = 1 }: Props) {
+export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scale = 1, onLoadingChange }: Props) {
   const { scene } = useThree();
   const meshRef = useRef<SplatMesh | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -139,14 +140,17 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
     };
   }, [loadSplatMesh, scene]);
 
-  // Log loading state for debugging
+  // Log loading state for debugging and notify parent
   useEffect(() => {
     if (loadError) {
       console.error('SplatWorld load error:', loadError);
     } else if (!isLoading) {
       console.log('SplatWorld loaded successfully');
     }
-  }, [loadError, isLoading]);
+    
+    // Notify parent component about loading state changes
+    onLoadingChange?.(isLoading, loadError || undefined);
+  }, [loadError, isLoading, onLoadingChange]);
 
   return null;
 }

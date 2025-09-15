@@ -20,6 +20,7 @@ type Props = {
   object: ObjectDef;
   shootSink: React.RefObject<ShootHandle | null>; // parent can call shoot/clear
   projectileSpeed?: number;
+  onLoadingChange?: (isLoading: boolean, error?: string) => void;
 };
 
 type Spawned = {
@@ -34,7 +35,8 @@ function SceneInner({
   world,
   object,
   shootSink,
-  projectileSpeed = 18 }: Props) {
+  projectileSpeed = 18,
+  onLoadingChange }: Props) {
   const { camera } = useThree();
   const [spawned, setSpawned] = useState<Spawned[]>([]);
   const speedRef = useRef(projectileSpeed);
@@ -59,6 +61,10 @@ function SceneInner({
 
   const clear = useCallback(() => setSpawned([]), []);
 
+  const handleLoadingChange = useCallback((loading: boolean, error?: string) => {
+    onLoadingChange?.(loading, error);
+  }, [onLoadingChange]);
+
   // expose to parent
   useEffect(() => {
     shootSink.current = { shoot, clear };
@@ -80,7 +86,14 @@ function SceneInner({
 
       {/* Spark renderer + the current Splat world */}
       <SparkLayer />
-      <SplatWorld key={world.url} url={world.url} position={world.position} quaternion={world.quaternion} scale={world.scale} />
+      <SplatWorld 
+        key={world.url} 
+        url={world.url} 
+        position={world.position} 
+        quaternion={world.quaternion} 
+        scale={world.scale}
+        onLoadingChange={handleLoadingChange}
+      />
 
       {/* Usual lighting for mesh-based objects */}
       <ambientLight intensity={0.5} />
@@ -98,9 +111,16 @@ function SceneInner({
 export default function WorldScene({
   world,
   object,
-  shootSink, projectileSpeed }: Props) {
+  shootSink, 
+  projectileSpeed,
+  onLoadingChange }: Props) {
+  const handleLoadingChange = useCallback((loading: boolean, error?: string) => {
+    onLoadingChange?.(loading, error);
+  }, [onLoadingChange]);
+
   return (
-    <Canvas
+    <>
+      <Canvas
       // Spark guidance: leave antialias off for better performance with splats
       gl={{ 
         antialias: false,
@@ -133,7 +153,11 @@ export default function WorldScene({
       <SceneInner
         world={world}
         object={object}
-        shootSink={shootSink} projectileSpeed={projectileSpeed} />
+        shootSink={shootSink} 
+        projectileSpeed={projectileSpeed}
+        onLoadingChange={handleLoadingChange}
+      />
     </Canvas>
+    </>
   );
 }
