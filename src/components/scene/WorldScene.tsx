@@ -9,6 +9,7 @@ import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
 import type { WorldDef, ObjectDef } from '@/data/presets';
+import XR, { XRProvider, XRRendererCapture } from '@/components/scene/XR';
 
 export type ShootHandle = {
   shoot: () => void;
@@ -119,45 +120,49 @@ export default function WorldScene({
   }, [onLoadingChange]);
 
   return (
-    <>
+    <XRProvider>
       <Canvas
-      // Spark guidance: leave antialias off for better performance with splats
-      gl={{ 
-        antialias: false,
-        // Avoid preserveDrawingBuffer; it increases memory pressure
-        preserveDrawingBuffer: false,
-        // Enable context loss recovery
-        failIfMajorPerformanceCaveat: false,
-        // Power preference for better compatibility
-        powerPreference: "high-performance"
-      }}
-      dpr={[1, Math.min(1.5, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1)]}
-      // Disable shadows for now to reduce GPU pressure
-      shadows={false}
-      camera={{ fov: 60, near: 0.1, far: 1000, position: [0, 1.2, 3] }}
-      // Add error boundary handling
-      onCreated={(state) => {
-        const gl = state.gl.getContext();
-        const dbg = {
-          webglVersion: gl?.getParameter?.(0x1F02 /* VERSION */),
-          shadingLanguageVersion: gl?.getParameter?.(0x8B8C /* SHADING_LANGUAGE_VERSION */),
-          rendererInfo: state.gl.info,
-          capabilities: state.gl.capabilities,
-          maxTextureSize: state.gl.capabilities.maxTextureSize,
-          precision: state.gl.capabilities.precision,
-          floatTextures: state.gl.capabilities.isWebGL2 || !!state.gl.extensions.get('OES_texture_float'),
-        };
-        console.log('Three.js Canvas created successfully', dbg);
-      }}
-    >
-      <SceneInner
-        world={world}
-        object={object}
-        shootSink={shootSink} 
-        projectileSpeed={projectileSpeed}
-        onLoadingChange={handleLoadingChange}
-      />
-    </Canvas>
-    </>
+        // Spark guidance: leave antialias off for better performance with splats
+        gl={{ 
+          antialias: false,
+          // Avoid preserveDrawingBuffer; it increases memory pressure
+          preserveDrawingBuffer: false,
+          // Enable context loss recovery
+          failIfMajorPerformanceCaveat: false,
+          // Power preference for better compatibility
+          powerPreference: "high-performance"
+        }}
+        dpr={[1, Math.min(1.5, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1)]}
+        // Disable shadows for now to reduce GPU pressure
+        shadows={false}
+        camera={{ fov: 60, near: 0.1, far: 1000, position: [0, 1.2, 3] }}
+        // Add error boundary handling
+        onCreated={(state) => {
+          const gl = state.gl.getContext();
+          const dbg = {
+            webglVersion: gl?.getParameter?.(0x1F02 /* VERSION */),
+            shadingLanguageVersion: gl?.getParameter?.(0x8B8C /* SHADING_LANGUAGE_VERSION */),
+            rendererInfo: state.gl.info,
+            capabilities: state.gl.capabilities,
+            maxTextureSize: state.gl.capabilities.maxTextureSize,
+            precision: state.gl.capabilities.precision,
+            floatTextures: state.gl.capabilities.isWebGL2 || !!state.gl.extensions.get('OES_texture_float'),
+          };
+          console.log('Three.js Canvas created successfully', dbg);
+        }}
+      >
+        {/* Capture WebGL renderer for XR context */}
+        <XRRendererCapture />
+        {/* WebXR integration (ghost hand meshes) */}
+        <XR />
+        <SceneInner
+          world={world}
+          object={object}
+          shootSink={shootSink} 
+          projectileSpeed={projectileSpeed}
+          onLoadingChange={handleLoadingChange}
+        />
+      </Canvas>
+    </XRProvider>
   );
 }

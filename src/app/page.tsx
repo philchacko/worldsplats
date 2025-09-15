@@ -6,6 +6,7 @@ import { NavHeader } from "@/components/hud/NavHeader";
 import { Spinner } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
+import { VRButtonComponent } from "@/components/scene/XR";
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
@@ -49,6 +50,8 @@ export default function Page() {
     setLoadError(error);
   };
 
+  // XR handled within the 3D Canvas via components under `components/scene`.
+
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D */}
@@ -83,6 +86,9 @@ export default function Page() {
           />
           <span className="w-10 text-right tabular-nums">{speed}</span>
         </label>
+
+        {/* VR Button */}
+        <VRButtonComponent className="w-full" />
 
         <p className="text-xs text-secondary">
           Movement: W/A/S/D + mouse.
