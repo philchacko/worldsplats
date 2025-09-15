@@ -31,6 +31,7 @@ export function RapierProvider({
   const envBodyRef = useRef<RAPIER.RigidBody | null>(null);
   const envCollidersRef = useRef<RAPIER.Collider[]>([]);
   const playerBodyRef = useRef<RAPIER.RigidBody | null>(null);
+  const [playerBodyState, setPlayerBodyState] = useState<RAPIER.RigidBody | null>(null);
 
   // init once
   useEffect(() => {
@@ -143,6 +144,7 @@ export function RapierProvider({
     if (playerBodyRef.current) {
       world.removeRigidBody(playerBodyRef.current);
       playerBodyRef.current = null;
+      setPlayerBodyState(null);
     }
     const { RADIUS, HALF_HEIGHT, START, FRICTION, RESTI, LINEAR_DAMPING } = UNIVERSE_CONFIG.PLAYER;
     const bodyDesc = rapier
@@ -158,18 +160,20 @@ export function RapierProvider({
       .setRestitution(RESTI);
     world.createCollider(colDesc, body);
     playerBodyRef.current = body;
+    setPlayerBodyState(body);
     return () => {
       const w = worldRef.current;
       if (w && playerBodyRef.current) {
         w.removeRigidBody(playerBodyRef.current);
         playerBodyRef.current = null;
+        setPlayerBodyState(null);
       }
     };
   }, [rapierReady]);
 
   const value = useMemo<RapierCtx>(
-    () => ({ rapier: rapierRef.current, world: worldRef.current, playerBody: playerBodyRef.current }),
-    [rapierReady]
+    () => ({ rapier: rapierRef.current, world: worldRef.current, playerBody: playerBodyState }),
+    [rapierReady, playerBodyState]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

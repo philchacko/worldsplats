@@ -44,6 +44,19 @@ export default function PlayerController({
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       key.current[e.code] = true;
+      if (e.code === 'KeyP') {
+        const rb = bodyRef.current;
+        if (rb) {
+          const p = rb.translation();
+          const fwd = new THREE.Vector3();
+          camera.getWorldDirection(fwd).normalize();
+          const yaw = Math.atan2(fwd.x, fwd.z) * 180 / Math.PI;
+          const pitch = Math.asin(THREE.MathUtils.clamp(fwd.y, -1, 1)) * 180 / Math.PI;
+          console.log(`[Player] pos=(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) yaw=${yaw.toFixed(1)} pitch=${pitch.toFixed(1)}`);
+        } else {
+          console.warn('[Player] body not initialized yet');
+        }
+      }
       if (e.code === 'Space') {
         jumpRequested.current = true;
         e.preventDefault();
@@ -90,6 +103,9 @@ export default function PlayerController({
     const speed = (key.current['ShiftLeft'] || key.current['ShiftRight']) ? sprintSpeed : moveSpeed;
     const cur = rb.linvel();
     const target = { x: dir.x * speed, y: cur.y, z: dir.z * speed };
+    if (dir.lengthSq() > 0 && !Number.isFinite(target.x + target.y + target.z)) {
+      console.warn('[Player] non-finite velocity target', target);
+    }
 
     // Jump only when grounded
     if (jumpRequested.current && isGrounded()) {
