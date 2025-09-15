@@ -48,6 +48,13 @@
   --border-highlighted: var(--color-white);
   --border-error: var(--color-rose-200);
   --border-elevated: var(--color-gray-900);
+
+  /* NavHeader specific variables */
+  --color-border: var(--color-gray-800);
+  --color-surface-elevated: var(--color-gray-800);
+  --space-8: 2rem;
+  --size-md: 1rem;
+  --size-sm: 0.875rem;
 }
 
 /* @theme inline {

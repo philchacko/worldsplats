@@ -5,18 +5,22 @@ import styles from "./NavHeader.module.css";
 
 type NavHeaderProps = {
   title: string;
+  detail: string;
   onBack: () => void;
   onForward: () => void;
 };
 
-export const NavHeader = ({ title, onBack, onForward }: NavHeaderProps) => {
+export const NavHeader = ({ title, detail, onBack, onForward }: NavHeaderProps) => {
   return (
     <div className={clsx(styles.header, "p-1 flex items-center justify-between")}>
       <IconButton
         onClick={onBack}
         icon={<ChevronLeftLine />}
       />
-      <span className={clsx(styles.title)}>{title}</span>
+      <div className="flex flex-col items-center">
+        <span className={clsx(styles.title)}>{title}</span>
+        <span className={clsx(styles.detail)}>{detail}</span>
+      </div>
       <IconButton
         onClick={onForward}
         icon={<ChevronRightLine/>}

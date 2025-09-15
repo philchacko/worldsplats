@@ -5,11 +5,16 @@
   align-items: center;
   gap: var(--space-8);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-elevated);
 }
 
 .title {
-  font: var(--size-sm);
+  font-size: var(--size-md);
+  font-weight: 500;
+  color: inherit;
+}
+
+.detail {
+  font-size: var(--size-sm);
   font-weight: 500;
   color: inherit;
 }

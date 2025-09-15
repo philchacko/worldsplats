@@ -15,8 +15,10 @@ export default function Page() {
   const [speed, setSpeed] = useState<number>(14);
   const shootRef = useRef<ShootHandle | null>(null);
 
+  // Return current index of world in WORLDS
+  const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
+
   const handleBack = () => {
-    const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
     if (currentIndex > 0) {
       setWorld(WORLDS[currentIndex - 1]);
     } else {
@@ -46,7 +48,12 @@ export default function Page() {
 
       {/* Overlay UI */}
       <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
-        <NavHeader title={world.name} onBack={handleBack} onForward={handleForward} />
+        <NavHeader
+          title={world.name}
+          detail={`${currentIndex + 1} of ${WORLDS.length}`}
+          onBack={handleBack}
+          onForward={handleForward}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">

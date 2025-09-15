@@ -92,6 +92,12 @@ module.exports = {
         ".text-inverted-secondary": {
           color: "var(--text-inverted-secondary)",
         },
+        ".text-sm": {
+          "font-size": "var(--size-sm)",
+        },
+        ".text-md": {
+          "font-size": "var(--size-md)",
+        },
       };
 
       const strokesAndFills = {
