@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { RapierProvider } from '@/physics';
+import { NavHeader } from "@/components/hud/NavHeader";
 
 import WorldScene from "@/components/scene/WorldScene";
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
@@ -11,7 +12,7 @@ import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
 export default function Page() {
   const [world, setWorld] = useState<WorldDef>(WORLDS[0]);
   const [object, setObject] = useState<ObjectDef>(OBJECTS[0]);
-  const [speed, setSpeed] = useState<number>(18);
+  const [speed, setSpeed] = useState<number>(14);
   const shootRef = useRef<ShootHandle | null>(null);
 
   return (
@@ -27,7 +28,7 @@ export default function Page() {
 
       {/* Overlay UI */}
       <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/70 p-4 text-sm text-zinc-100 backdrop-blur">
-        <h1 className="text-base font-semibold">Splat Shooter</h1>
+        <NavHeader title={world.name} onBack={() => {}} onForward={() => {}} />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">
@@ -46,7 +47,7 @@ export default function Page() {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1">
+          {/* <label className="flex flex-col gap-1">
             <span className="text-xs uppercase text-zinc-400">Object</span>
              <select
               className="rounded bg-zinc-800 px-2 py-1 outline-none"
@@ -60,7 +61,7 @@ export default function Page() {
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
             </select> 
-          </label>
+          </label> */}
         </div>
 
         <label className="flex items-center gap-3">
@@ -90,7 +91,9 @@ export default function Page() {
         </div>
 
         <p className="text-xs text-zinc-400">
-          Mouse: LMB orbit, MMB pan, RMB dolly. Keyboard: W/A/S/D truck/forward, Q/E dolly.
+          Mouse: Look around.
+          <br />
+          Keyboard: W/A/S/D truck/forward.
         </p>
       </div>
 

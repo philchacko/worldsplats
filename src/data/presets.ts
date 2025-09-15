@@ -31,12 +31,44 @@ export type ObjectDef =
 // NOTE: Keep a few .spz worlds; you can swap/add your own under /public/splats and switch to relative URLs later.
 // Spark demo asset:
 export const WORLDS: WorldDef[] = [
+  // {
+  //   id: 'butterfly',
+  //   name: 'Butterfly (Spark demo)',
+  //   url: 'https://sparkjs.dev/assets/splats/butterfly.spz',
+  //   position: [0, 0, -3],
+  //   // Spark quickstart rotates X by 180°; optional. You can experiment per asset.
+  //   quaternion: [1, 0, 0, 0],
+  //   scale: 1,
+  // },
   {
-    id: 'butterfly',
-    name: 'Butterfly (Spark demo)',
-    url: 'https://sparkjs.dev/assets/splats/butterfly.spz',
-    position: [0, 0, -3],
-    // Spark quickstart rotates X by 180°; optional. You can experiment per asset.
+    id: 'forest-retreat',
+    name: 'Forest Retreat',
+    url: '/worlds/foresthouse.spz',
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+  },
+  {
+    id: 'lofi-seaview',
+    name: 'Lofi Seaview',
+    url: '/worlds/lofistudy_sunset.spz',
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+  },
+  {
+    id: 'mainstreet-night',
+    name: 'Mainstreet (Night)',
+    url: '/worlds/mainstreet_night.spz',
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+  },
+  {
+    id: 'rural-retreat',
+    name: 'Rural Retreat',
+    url: '/worlds/paddies.spz',
+    position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
   },
@@ -47,8 +79,15 @@ export const WORLDS: WorldDef[] = [
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
+  },
+  {
+    id: 'european-city-sunset',
+    name: 'European City (Sunset)',
+    url: '/worlds/europeanurban_sunset.spz',
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
   }
-  // Add more here, e.g. your own hosted .spz files under /public/splats/*.spz
 ];
 
 export const OBJECTS: ObjectDef[] = [
