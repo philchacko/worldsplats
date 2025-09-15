@@ -4,6 +4,7 @@ export type WorldDef = {
   name: string;
   url: string;             // .spz or .ply (Spark auto-detects)
   imageUrl: string;
+  imageCredit?: string;
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
@@ -47,6 +48,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Forest Retreat',
     url: '/worlds/foresthouse.spz',
     imageUrl: '/worlds/foresthouse.jpg',
+    imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -77,6 +79,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Rural Retreat',
     url: '/worlds/paddies.spz',
     imageUrl: '/worlds/paddies.jpg',
+    imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -87,6 +90,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Simpsons World',
     url: '/worlds/simpsons.spz',
     imageUrl: '/worlds/simpsons.jpeg',
+    imageCredit: 'Disney',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,

@@ -99,6 +99,10 @@ export default function Page() {
           <p className="text-xs text-secondary">World guide</p>
           <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
         </div>
+        {world.imageCredit && <div className="space-y-1">
+          <p className="text-xs text-secondary">Image credit</p>
+          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
+        </div>}
       </div>
 
       {/* Loading overlay */}
