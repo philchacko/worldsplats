@@ -68,47 +68,11 @@ module.exports = {
         ".bg-action-hover": {
           "background-color": "var(--background-action-hover)",
         },
-        ".bg-action-hover-inverted": {
-          "background-color": "var(--background-action-hover-inverted)",
-        },
         ".bg-action-active": {
           "background-color": "var(--background-action-active)",
         },
-        ".bg-action-dropzone": {
-          "background-color": "var(--border-normal)",
-        },
-        ".bg-action-active-inverted": {
-          "background-color": "var(--background-action-active-inverted)",
-        },
-        ".bg-activeshot": {
-          "background-color": "var(--background-activeshot)",
-        },
-        ".bg-highlight-activeshot": {
-          "background-color": "var(--background-highlight-activeshot)",
-        },
-        ".bg-warning-primary": {
-          "background-color": "var(--background-warning-primary)",
-        },
-        ".bg-warning-primary-hover": {
-          "background-color": "var(--background-warning-primary-hover)",
-        },
-        ".bg-warning-primary-disabled": {
-          "background-color": "var(--background-warning-primary-disabled)",
-        },
-        ".bg-warning-secondary": {
-          "background-color": "var(--background-warning-secondary)",
-        },
-        ".bg-success-primary": {
-          "background-color": "var(--background-success-primary)",
-        },
-        ".bg-success-secondary": {
-          "background-color": "var(--background-success-secondary)",
-        },
-        ".bg-premium": {
-          "background-color": "var(--background-premium)",
-        },
-        ".bg-premium-hover": {
-          "background-color": "var(--background-premium-hover)",
+        ".bg-transparent": {
+          "background-color": "transparent",
         },
       };
 
@@ -122,38 +86,11 @@ module.exports = {
         ".text-tertiary": {
           color: "var(--text-tertiary)",
         },
-        ".text-suggestion": {
-          color: "var(--text-suggestion)",
-        },
-        ".text-activeplayhead": {
-          color: "var(--text-activeplayhead)",
-        },
-        ".text-placeholder": {
-          color: "var(--text-placeholder)",
-        },
-        ".placeholder-text-placeholder::placeholder": {
-          color: "var(--text-placeholder)",
-        },
-        ".text-action": {
-          color: "var(--text-action)",
-        },
         ".text-inverted-primary": {
           color: "var(--text-inverted-primary)",
         },
         ".text-inverted-secondary": {
           color: "var(--text-inverted-secondary)",
-        },
-        ".text-inverted-tertiary": {
-          color: "var(--text-inverted-tertiary)",
-        },
-        ".text-warning": {
-          color: "var(--text-warning)",
-        },
-        ".text-warning-disabled": {
-          color: "var(--text-warning-disabled)",
-        },
-        ".text-success-primary": {
-          color: "var(--text-success-primary)",
         },
       };
 

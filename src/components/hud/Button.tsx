@@ -116,7 +116,7 @@ export const iconButtonStyleClass = (
   return `${borderStyle(style)} ${prominenceStyle(
     prominence,
     disabled
-  )} ${sizeStyle(size)} transition-colors duration-200`;
+  )} ${sizeStyle(size)} bg-elevated transition-colors duration-200`;
 };
 
 export const buttonStyleClass = (

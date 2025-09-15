@@ -1,33 +1,49 @@
 @import "tailwindcss";
 
 @theme {
+  /* Custom semantic colors for your design system */
   --color-primary: var(--color-white);
   --color-secondary: var(--color-gray-400);
   --color-tertiary: var(--color-gray-500);
   --color-normal: var(--color-gray-800);
+  --color-elevated: var(--color-gray-800);
 }
 
 :root {
+  /* Base colors */
   --background: var(--color-black);
   --foreground: #171717;
 
+  /* Text colors */
   --text-primary: var(--color-white);
   --text-secondary: var(--color-gray-400);
   --text-tertiary: var(--color-gray-500);
-  --color-text: var(--color-white);
-  --color-text-light: var(--color-gray-300);
-  --color-text-lighter: var(--color-gray-400);
-  --color-text-lightest: var(--color-gray-500);
+  --text-inverted-primary: var(--color-black);
+  --text-inverted-secondary: var(--color-gray-600);
 
+  /* Icon colors */
   --stroke-primary: var(--color-white);
   --stroke-secondary: var(--color-gray-400);
   --stroke-tertiary: var(--color-gray-500);
+  --stroke-inverted-primary: var(--color-black);
 
-  --fill-root: var(--color-black);
+  /* Fill colors */
   --fill-primary: var(--color-white);
   --fill-secondary: var(--color-gray-400);
   --fill-tertiary: var(--color-gray-500);
+  --fill-inverted-primary: var(--color-black);
 
+  /* Button background colors */
+  --background-action-primary: var(--color-gray-800);
+  --background-action-primary-hover: var(--color-gray-700);
+  --background-action-primary-active: var(--color-gray-600);
+  --background-action-primary-disabled: var(--color-gray-900);
+  --background-action-hover: var(--color-gray-800);
+  --background-action-active: var(--color-gray-700);
+  --background-action-transparent: transparent;
+  --background-elevated: var(--color-gray-800);
+
+  /* Border colors */
   --border-normal: var(--color-gray-800);
   --border-highlighted: var(--color-white);
   --border-error: var(--color-rose-200);
