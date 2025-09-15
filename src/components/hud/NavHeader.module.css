@@ -4,7 +4,6 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-8);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .title {
