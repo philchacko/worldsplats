@@ -84,9 +84,12 @@ export default function PlayerController({
     return hit.toi <= maxToi && normalY > 0.3;
   };
 
-  useFrame(() => {
+  useFrame(({ gl }) => {
     const rb = bodyRef.current;
     if (!rb) return;
+
+    // Check if we're in XR mode - if so, don't update camera position
+    const isInXR = gl.xr?.isPresenting;
 
     camera.getWorldDirection(forward);
     forward.y = 0; forward.normalize();
@@ -115,10 +118,13 @@ export default function PlayerController({
 
     rb.setLinvel(target, true);
 
-    // Camera at eye height above feet
-    const p = rb.translation();
-    const feetY = p.y - (halfHeight + radius);
-    camera.position.set(p.x, feetY + eyeHeight, p.z);
+    // Only update camera position when NOT in XR mode
+    // In XR mode, the XR system handles camera positioning
+    if (!isInXR) {
+      const p = rb.translation();
+      const feetY = p.y - (halfHeight + radius);
+      camera.position.set(p.x, feetY + eyeHeight, p.z);
+    }
   });
 
   return (

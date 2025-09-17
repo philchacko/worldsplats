@@ -103,23 +103,28 @@ export function XRRendererCapture() {
  */
 export function XRSetup() {
   const { scene, camera, gl } = useThree();
-  const localFrameRef = useRef<THREE.Group>(new THREE.Group());
+  const localFrameRef = useRef<THREE.Group | null>(null);
   const xrHandsRef = useRef<{ makeGhostMesh: () => THREE.Object3D; update: (params: { xr: THREE.WebXRManager; xrFrame: XRFrame }) => void } | null>(null);
   const lastCameraPosRef = useRef(new THREE.Vector3(0, 0, 0));
+  const cameraParentRef = useRef<THREE.Object3D | null>(null);
   const { hasXR, hasXRHand } = useContext(XRContext);
 
   // Create local frame for XR positioning
   useEffect(() => {
     if (!hasXR) return;
 
-    const localFrame = localFrameRef.current;
+    const localFrame = new THREE.Group();
     localFrameRef.current = localFrame;
     scene.add(localFrame);
 
-    // Move camera into local frame
-    localFrame.add(camera);
+    // Store camera's original parent so we can restore it
+    cameraParentRef.current = camera.parent;
 
     return () => {
+      // Restore camera to original parent when cleaning up
+      if (cameraParentRef.current && camera.parent === localFrame) {
+        cameraParentRef.current.add(camera);
+      }
       scene.remove(localFrame);
     };
   }, [scene, camera, hasXR]);
@@ -162,14 +167,28 @@ export function XRSetup() {
 
     if (!localFrame || !hasXR) return;
 
-    // Handle local frame positioning (from sample code)
-    // This is a hack to make a "local" frame work reliably across
-    // Quest 3 and Vision Pro. Any big discontinuity in the camera
-    // results in a reverse shift of the local frame to compensate.
-    if (lastCameraPosRef.current.distanceTo(camera.position) > 0.5) {
-      localFrame.position.copy(camera.position).multiplyScalar(-1);
+    // Only do XR positioning when actually in XR mode
+    const isInXR = gl.xr?.isPresenting;
+    if (isInXR) {
+      // Move camera into local frame only when in XR
+      if (camera.parent !== localFrame) {
+        localFrame.add(camera);
+      }
+
+      // Handle local frame positioning (from sample code)
+      // This is a hack to make a "local" frame work reliably across
+      // Quest 3 and Vision Pro. Any big discontinuity in the camera
+      // results in a reverse shift of the local frame to compensate.
+      if (lastCameraPosRef.current.distanceTo(camera.position) > 0.5) {
+        localFrame.position.copy(camera.position).multiplyScalar(-1);
+      }
+      lastCameraPosRef.current.copy(camera.position);
+    } else {
+      // When not in XR, restore camera to original parent so PlayerController can work
+      if (camera.parent === localFrame && cameraParentRef.current) {
+        cameraParentRef.current.add(camera);
+      }
     }
-    lastCameraPosRef.current.copy(camera.position);
 
     // Update XR hands if available
     if (xrHands && gl.xr && xrFrame) {
