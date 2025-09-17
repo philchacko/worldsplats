@@ -9,7 +9,7 @@ import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
 import type { WorldDef, ObjectDef } from '@/data/presets';
-import XR, { XRProvider, XRRendererCapture } from '@/components/scene/XR';
+import XR, { XRRendererCapture } from '@/components/scene/XR';
 
 export type ShootHandle = {
   shoot: () => void;
@@ -120,7 +120,6 @@ export default function WorldScene({
   }, [onLoadingChange]);
 
   return (
-    <XRProvider>
       <Canvas
         // Spark guidance: leave antialias off for better performance with splats
         gl={{ 
@@ -153,7 +152,7 @@ export default function WorldScene({
       >
         {/* Capture WebGL renderer for XR context */}
         <XRRendererCapture />
-        {/* WebXR integration (ghost hand meshes) */}
+        {/* WebXR integration (local frame and ghost hand meshes) */}
         <XR />
         <SceneInner
           world={world}
@@ -163,6 +162,5 @@ export default function WorldScene({
           onLoadingChange={handleLoadingChange}
         />
       </Canvas>
-    </XRProvider>
   );
 }

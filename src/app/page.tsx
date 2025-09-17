@@ -6,7 +6,7 @@ import { NavHeader } from "@/components/hud/NavHeader";
 import { Spinner } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
-import { VRButtonComponent } from "@/components/scene/XR";
+import { VRButtonComponent, XRProvider, useXRSupport } from "@/components/scene/XR";
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
@@ -53,6 +53,7 @@ export default function Page() {
   // XR handled within the 3D Canvas via components under `components/scene`.
 
   return (
+    <XRProvider>
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D */}
       <RapierProvider>
@@ -87,14 +88,15 @@ export default function Page() {
           <span className="w-10 text-right tabular-nums">{speed}</span>
         </label>
 
-        {/* VR Button */}
-        <VRButtonComponent className="w-full" />
+        <div className="flex justify-between gap-2">
+          <p className="text-xs text-secondary">
+            Movement: W/A/S/D + mouse.
+            <br />
+            Navigation: ←/→ or Q/E.
+          </p>
 
-        <p className="text-xs text-secondary">
-          Movement: W/A/S/D + mouse.
-          <br />
-          Navigation: ←/→ or Q/E.
-        </p>
+          <VRSupportAndButton />
+        </div>
 
         <Divider />
         <div className="space-y-1">
@@ -135,6 +137,14 @@ export default function Page() {
       <ShootHotkey shootRef={shootRef} />
       <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
     </div>
+    </XRProvider>
+  );
+}
+function VRSupportAndButton() {
+  const { hasXR } = useXRSupport();
+  const enabled = hasXR !== false; // allow clicking even if hand-tracking is missing
+  return (
+    <VRButtonComponent className="w-full" enabled={enabled} />
   );
 }
 
