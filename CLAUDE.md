@@ -29,18 +29,23 @@ This is a Next.js 15 app using React 19 that implements a 3D "Splat Shooter" usi
 - `src/components/spark/SplatWorld.tsx` - Loads and displays .spz/.ply splat files
 - `src/components/physics/Projectile.tsx` - Physics-enabled projectile objects
 - `src/data/presets.ts` - Configuration for worlds and shootable objects
+- `src/data/universeconfig.ts` - Global physics and gameplay constants
+- `src/physics/` - Physics system with Rapier integration and type definitions
 
 ### Core Concepts
 
 **Spark Integration**: The SparkRenderer is attached to the camera for better float16 precision across large scenes. Custom webpack config disables URL parsing for WASM compatibility.
 
-**World/Object System**: 
-- `WorldDef` defines splat worlds (.spz/.ply files) with position, rotation, scale
+**World/Object System**:
+- `WorldDef` defines splat worlds (.spz/.ply files) with position, rotation, scale, and descriptive guide text
 - `ObjectDef` defines shootable objects (primitives or GLTF models) with physics properties
+- Worlds include detailed prompt descriptions for context and immersion
 
-**Physics**: Uses Rapier for realistic projectile physics with configurable mass, colliders, and gravity.
+**Physics**: Uses Rapier for realistic projectile physics with configurable mass, colliders, and gravity. Global constants in `universeconfig.ts` control physics parameters.
 
 **Camera Controls**: DCC-style navigation (orbit/pan/dolly) with WASD keyboard shortcuts for movement.
+
+**XR Support**: Includes VR/AR capabilities with hand tracking detection and WebXR integration.
 
 ### Key Features
 
