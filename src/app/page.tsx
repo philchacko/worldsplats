@@ -94,8 +94,6 @@ export default function Page() {
             <br />
             Navigation: ←/→ or Q/E.
           </p>
-
-          <VRSupportAndButton />
         </div>
 
         <Divider />
@@ -132,6 +130,10 @@ export default function Page() {
           </div>
         </div>
       )}
+      
+      <div className="absolute left-1/2 bottom-8 h-28 w-sm">
+        <VRSupportAndButton />
+      </div>
 
       {/* keyboard shortcuts */}
       <ShootHotkey shootRef={shootRef} />
@@ -144,7 +146,7 @@ function VRSupportAndButton() {
   const { hasXR } = useXRSupport();
   const enabled = hasXR !== false; // allow clicking even if hand-tracking is missing
   return (
-    <VRButtonComponent className="w-full" enabled={enabled} />
+    <VRButtonComponent className="w-full rounded-lg" enabled={enabled} />
   );
 }
 
