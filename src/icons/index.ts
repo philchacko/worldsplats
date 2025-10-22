@@ -5,6 +5,7 @@ export * from "./ArrowLeft";
 export * from "./Spinner"
 export * from "./VolumeMax"
 export * from "./VolumeX"
+export * from "./Home"
 
 export enum IconColor {
   Primary = "primary",

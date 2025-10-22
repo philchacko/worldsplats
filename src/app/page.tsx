@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { RapierProvider } from '@/physics';
 import { NavHeader } from "@/components/hud/NavHeader";
-import { Spinner, VolumeMaxLine, VolumeXLine } from "@/icons";
+import { Spinner, VolumeMaxLine, VolumeXLine, HomeLine } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
@@ -128,7 +128,7 @@ function RootUIOverlays({
 }: {
   isLoading: boolean; loadError?: string;
 }) {
-  const { isLocked } = usePointerLock();
+  const { isLocked, unlock } = usePointerLock();
   const { muted, setMuted } = useAudio();
 
   return (
@@ -142,6 +142,16 @@ function RootUIOverlays({
         className="absolute top-4 right-4 sm:top-4 sm:right-4 max-sm:top-auto max-sm:bottom-4 z-10 stroke-secondary"
         icon={muted ? <VolumeXLine /> : <VolumeMaxLine />}
       />
+
+      {/* Exit play button - mobile only, above mute button */}
+      {isLocked && (
+        <IconButton
+          aria-label="Exit play"
+          onClick={unlock}
+          className="absolute bottom-20 right-4 sm:hidden z-10 stroke-secondary"
+          icon={<HomeLine />}
+        />
+      )}
 
       {/* Loading overlay (kept from your code) */}
       {(isLoading || loadError) && (
