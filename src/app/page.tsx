@@ -11,8 +11,8 @@ import { AudioProvider, useAudio } from '@/providers/audio';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
-import { ClickToPlayOverlay, Reticle } from '@/components/hud/ClickToPlay';
-import { IconButton } from '@/components/hud/Button';
+import { Reticle } from '@/components/hud/ClickToPlay';
+import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
 
 function OverlayUI({
@@ -22,6 +22,8 @@ function OverlayUI({
   setSpeed,
   onBack,
   onForward,
+  isLoading,
+  loadError,
 }: {
   world: WorldDef;
   currentIndex: number;
@@ -29,12 +31,39 @@ function OverlayUI({
   setSpeed: (speed: number) => void;
   onBack: () => void;
   onForward: () => void;
+  isLoading: boolean;
+  loadError?: string;
 }) {
-  const { isLocked } = usePointerLock();
+  const { isLocked, lock } = usePointerLock();
+  const { init } = useAudio();
+
+  const handleClickToPlay = React.useCallback(async () => {
+    try {
+      await init();
+    } catch (e) {
+      console.error('Failed to initialize audio:', e);
+    }
+
+    // iOS motion permission (optional)
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' &&
+          // @ts-expect-error - DeviceMotionEvent.requestPermission is iOS-specific
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        // @ts-expect-error - DeviceMotionEvent.requestPermission is iOS-specific
+        const res = await DeviceMotionEvent.requestPermission();
+        console.log('Motion permission:', res);
+      }
+    } catch (e) {
+      console.log('Motion permission not available or denied:', e);
+    }
+
+    lock({ unadjustedMovement: false });
+  }, [init, lock]);
 
   return (
-    <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 bg-root backdrop-blur">
-      <div className="p-4">
+    <div className="pointer-events-auto flex w-full sm:w-[480px] max-h-[80vh] flex-col rounded-lg border border-normal bg-zinc-900/70 bg-root backdrop-blur overflow-hidden">
+      {/* NavHeader - always visible */}
+      <div className="p-4 flex-shrink-0">
         <NavHeader
           title={world.name}
           detail={`${currentIndex + 1} of ${WORLDS.length}`}
@@ -44,7 +73,7 @@ function OverlayUI({
       </div>
 
       {/* Additional UI - hidden when locked */}
-      <div className={`px-4 pb-4 space-y-4 ${isLocked ? 'hidden' : ''}`}>
+      <div className={`px-4 pb-4 space-y-4 overflow-y-auto flex-1 ${isLocked ? 'hidden' : ''}`}>
         <Divider />
 
         <label className="flex items-center gap-3 text-xs">
@@ -78,6 +107,17 @@ function OverlayUI({
           <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
         </div>}
       </div>
+
+      {/* Click to Play Footer - always visible when not locked */}
+      {!isLocked && !isLoading && !loadError && (
+        <div className="p-4 border-t border-normal">
+          <Button
+            className="w-full px-6 py-3 rounded-md border border-zinc-700 bg-zinc-800 text-base font-medium hover:bg-zinc-700 hover:border-zinc-600 transition-colors"
+            onClick={handleClickToPlay}
+            label="Click to play"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -93,14 +133,13 @@ function RootUIOverlays({
 
   return (
     <>
-      <ClickToPlayOverlay visible={!isLocked && !isLoading && !loadError} />
       <Reticle visible={isLocked && !isLoading && !loadError} />
 
-      {/* Mute button */}
+      {/* Mute button - top-right on desktop, bottom-right on mobile */}
       <IconButton
         aria-label="Toggle volume"
         onClick={() => setMuted(!muted)}
-        className="absolute top-4 right-4 z-10 stroke-secondary"
+        className="absolute top-4 right-4 sm:top-4 sm:right-4 max-sm:top-auto max-sm:bottom-4 z-10 stroke-secondary"
         icon={muted ? <VolumeXLine /> : <VolumeMaxLine />}
       />
 
@@ -179,19 +218,21 @@ function PageContent() {
 
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
-          {/* 3D */}
-          <RapierProvider>
-            <WorldScene
-              world={world}
-              object={object}
-              shootSink={shootRef}
-              projectileSpeed={speed}
-              onLoadingChange={handleLoadingChange}
-              mobileInputRef={mobileInputRef}
-            />
-          </RapierProvider>
+      {/* 3D Canvas - fills entire viewport */}
+      <RapierProvider>
+        <WorldScene
+          world={world}
+          object={object}
+          shootSink={shootRef}
+          projectileSpeed={speed}
+          onLoadingChange={handleLoadingChange}
+          mobileInputRef={mobileInputRef}
+        />
+      </RapierProvider>
 
-          {/* Overlay UI */}
+      {/* Overlay UI - positioned at top with pointer-events-none on container */}
+      <div className="absolute inset-0 flex flex-col pointer-events-none">
+        <div className="flex justify-center p-4 sm:px-4 sm:pt-4">
           <OverlayUI
             world={world}
             currentIndex={currentIndex}
@@ -199,17 +240,21 @@ function PageContent() {
             setSpeed={setSpeed}
             onBack={handleBack}
             onForward={handleForward}
+            isLoading={isLoading}
+            loadError={loadError}
           />
+        </div>
+      </div>
 
-          {/* Click-to-play + reticle + loading overlays */}
-          <RootUIOverlays isLoading={isLoading} loadError={loadError} />
+      {/* Reticle + loading overlays + mute button */}
+      <RootUIOverlays isLoading={isLoading} loadError={loadError} />
 
-          {/* Mobile controls */}
-          <MobileHud mobileInputRef={mobileInputRef} />
+      {/* Mobile controls */}
+      <MobileHud mobileInputRef={mobileInputRef} />
 
-          {/* keyboard shortcuts */}
-          <ShootHotkey shootRef={shootRef} />
-          <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
+      {/* keyboard shortcuts */}
+      <ShootHotkey shootRef={shootRef} />
+      <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function ClickToPlayOverlay({ visible }: { visible: boolean }) {
   if (!visible) return null;
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+    <div className="absolute inset-0 z-10 flex items-end justify-center pb-16 pointer-events-none">
       <Button
         className="pointer-events-auto px-6 py-3 rounded-md border border-zinc-700 bg-zinc-900/80 text-base font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
         onClick={onClick}
