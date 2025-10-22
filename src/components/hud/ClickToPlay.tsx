@@ -12,6 +12,21 @@ export function ClickToPlayOverlay({ visible }: { visible: boolean }) {
   const onClick = useCallback(async () => {
     // Start audio & request pointer lock in the same user gesture
     try { await init(); } catch {}
+
+    // iOS motion permission (optional)
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' &&
+          // @ts-expect-error - DeviceMotionEvent.requestPermission is iOS-specific
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        // Must be in a user gesture!
+        // @ts-expect-error - DeviceMotionEvent.requestPermission is iOS-specific
+        const res = await DeviceMotionEvent.requestPermission();
+        console.log('Motion permission:', res);
+      }
+    } catch (e) {
+      console.log('Motion permission not available or denied:', e);
+    }
+
     lock({ unadjustedMovement: false });
   }, [init, lock]);
 

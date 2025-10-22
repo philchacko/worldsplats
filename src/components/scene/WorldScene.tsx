@@ -9,6 +9,7 @@ import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
 import PointerLockBridge from '@/components/scene/PointerLockBridge';
+import TouchLookController from '@/components/controls/TouchLookController';
 import type { WorldDef, ObjectDef } from '@/data/presets';
 
 export type ShootHandle = {
@@ -22,6 +23,7 @@ type Props = {
   shootSink: React.RefObject<ShootHandle | null>; // parent can call shoot/clear
   projectileSpeed?: number;
   onLoadingChange?: (isLoading: boolean, error?: string) => void;
+  mobileInputRef?: React.MutableRefObject<{x:number;y:number}>;
 };
 
 type Spawned = {
@@ -37,10 +39,13 @@ function SceneInner({
   object,
   shootSink,
   projectileSpeed = 18,
-  onLoadingChange }: Props) {
+  onLoadingChange,
+  mobileInputRef }: Props) {
   const { camera } = useThree();
   const [spawned, setSpawned] = useState<Spawned[]>([]);
   const speedRef = useRef(projectileSpeed);
+  const localMobileInputRef = useRef<{x:number;y:number}>({x:0,y:0});
+  const inputRef = mobileInputRef || localMobileInputRef;
 
   useEffect(() => {
     speedRef.current = projectileSpeed;
@@ -80,7 +85,10 @@ function SceneInner({
   return (
     <>
       {/* FPS-style player controls */}
-      <PlayerController />
+      <PlayerController mobileInputRef={inputRef} />
+
+      {/* Touch-based camera look for mobile */}
+      <TouchLookController />
 
       {/* Environment collision mesh (visuals only, physics in provider) */}
       <Floor visible={false} />
@@ -112,18 +120,22 @@ function SceneInner({
 export default function WorldScene({
   world,
   object,
-  shootSink, 
+  shootSink,
   projectileSpeed,
-  onLoadingChange }: Props) {
+  onLoadingChange,
+  mobileInputRef }: Props) {
   const handleLoadingChange = useCallback((loading: boolean, error?: string) => {
     onLoadingChange?.(loading, error);
   }, [onLoadingChange]);
 
+  // Cap DPR more aggressively on mobile for performance
+  const dprCap = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 1.0 : 1.5;
+
   return (
-    <>
+    <div className="canvas-root absolute inset-0">
       <Canvas
       // Spark guidance: leave antialias off for better performance with splats
-      gl={{ 
+      gl={{
         antialias: false,
         // Avoid preserveDrawingBuffer; it increases memory pressure
         preserveDrawingBuffer: false,
@@ -132,7 +144,7 @@ export default function WorldScene({
         // Power preference for better compatibility
         powerPreference: "high-performance"
       }}
-      dpr={[1, Math.min(1.5, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1)]}
+      dpr={[1, dprCap]}
       // Disable shadows for now to reduce GPU pressure
       shadows={false}
       camera={{ fov: 60, near: 0.1, far: 1000, position: [0, 1.2, 3] }}
@@ -156,11 +168,12 @@ export default function WorldScene({
       <SceneInner
         world={world}
         object={object}
-        shootSink={shootSink} 
+        shootSink={shootSink}
         projectileSpeed={projectileSpeed}
         onLoadingChange={handleLoadingChange}
+        mobileInputRef={mobileInputRef}
       />
     </Canvas>
-    </>
+    </div>
   );
 }

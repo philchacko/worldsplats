@@ -13,6 +13,74 @@ type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
 import { ClickToPlayOverlay, Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton } from '@/components/hud/Button';
+import MobileHud from '@/components/controls/MobileHud';
+
+function OverlayUI({
+  world,
+  currentIndex,
+  speed,
+  setSpeed,
+  onBack,
+  onForward,
+}: {
+  world: WorldDef;
+  currentIndex: number;
+  speed: number;
+  setSpeed: (speed: number) => void;
+  onBack: () => void;
+  onForward: () => void;
+}) {
+  const { isLocked } = usePointerLock();
+
+  return (
+    <div className="pointer-events-auto absolute left-4 top-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 bg-root backdrop-blur">
+      <div className="p-4">
+        <NavHeader
+          title={world.name}
+          detail={`${currentIndex + 1} of ${WORLDS.length}`}
+          onBack={onBack}
+          onForward={onForward}
+        />
+      </div>
+
+      {/* Additional UI - hidden when locked */}
+      <div className={`px-4 pb-4 space-y-4 ${isLocked ? 'hidden' : ''}`}>
+        <Divider />
+
+        <label className="flex items-center gap-3 text-xs">
+          <span className="pr-4">Speed</span>
+          <input
+            type="range" min={2} max={40} step={1}
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            className="w-full"
+          />
+          <span className="w-10 text-right tabular-nums">{speed}</span>
+        </label>
+
+        <p className="text-xs text-secondary">
+          Movement: W/A/S/D + mouse.
+          <br />
+          Navigation: ←/→ or Q/E.
+        </p>
+
+        <Divider />
+        <div className="space-y-1">
+          <p className="text-xs text-secondary">Prompt image</p>
+          <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-secondary">World guide</p>
+          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
+        </div>
+        {world.imageCredit && <div className="space-y-1">
+          <p className="text-xs text-secondary">Image credit</p>
+          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
+        </div>}
+      </div>
+    </div>
+  );
+}
 
 function RootUIOverlays({
   isLoading,
@@ -76,6 +144,7 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | undefined>();
   const shootRef = useRef<ShootHandle | null>(null);
+  const mobileInputRef = useRef<{x:number;y:number}>({x:0,y:0});
 
   // Return current index of world in WORLDS
   const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
@@ -111,57 +180,28 @@ export default function Page() {
             <WorldScene
               world={world}
               object={object}
-              shootSink={shootRef} 
+              shootSink={shootRef}
               projectileSpeed={speed}
               onLoadingChange={handleLoadingChange}
+              mobileInputRef={mobileInputRef}
             />
           </RapierProvider>
 
           {/* Overlay UI */}
-          <div className="pointer-events-auto absolute left-4 top-4 space-y-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
-            <NavHeader
-              title={world.name}
-              detail={`${currentIndex + 1} of ${WORLDS.length}`}
-              onBack={handleBack}
-              onForward={handleForward}
-            />
-
-            <Divider />
-
-            <label className="flex items-center gap-3 text-xs">
-              <span className="pr-4">Speed</span>
-              <input
-                type="range" min={2} max={40} step={1}
-                value={speed}
-                onChange={(e) => setSpeed(Number(e.target.value))}
-                className="w-full"
-              />
-              <span className="w-10 text-right tabular-nums">{speed}</span>
-            </label>
-
-            <p className="text-xs text-secondary">
-              Movement: W/A/S/D + mouse.
-              <br />
-              Navigation: ←/→ or Q/E.
-            </p>
-
-            <Divider />
-            <div className="space-y-1">
-              <p className="text-xs text-secondary">Prompt image</p>
-              <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-secondary">World guide</p>
-              <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
-            </div>
-            {world.imageCredit && <div className="space-y-1">
-              <p className="text-xs text-secondary">Image credit</p>
-              <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
-            </div>}
-          </div>
+          <OverlayUI
+            world={world}
+            currentIndex={currentIndex}
+            speed={speed}
+            setSpeed={setSpeed}
+            onBack={handleBack}
+            onForward={handleForward}
+          />
 
           {/* Click-to-play + reticle + loading overlays */}
           <RootUIOverlays isLoading={isLoading} loadError={loadError} />
+
+          {/* Mobile controls */}
+          <MobileHud mobileInputRef={mobileInputRef} />
 
           {/* keyboard shortcuts */}
           <ShootHotkey shootRef={shootRef} />

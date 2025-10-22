@@ -15,6 +15,7 @@ type Props = {
   sprintSpeed?: number;
   jumpSpeed?: number;
   start?: [number, number, number];
+  mobileInputRef?: React.MutableRefObject<{x:number;y:number}>;
 };
 
 export default function PlayerController({
@@ -26,6 +27,7 @@ export default function PlayerController({
   sprintSpeed = 6.0,
   jumpSpeed = 6.0,
   start = [0, 1.4, 0],
+  mobileInputRef,
 }: Props) {
   const { camera } = useThree();
   const { world, rapier, playerBody } = useRapierWorld();
@@ -35,6 +37,8 @@ export default function PlayerController({
   const jumpRequested = useRef(false);
   const forward = useMemo(() => new THREE.Vector3(), []);
   const right = useMemo(() => new THREE.Vector3(), []);
+  const localMobileVec = useRef<{x:number;y:number}>({x:0,y:0});
+  const mobileVec = mobileInputRef || localMobileVec;
 
   // Sync to provider-owned body
   useEffect(() => {
@@ -94,11 +98,18 @@ export default function PlayerController({
     forward.y = 0; forward.normalize();
     right.crossVectors(forward, camera.up).normalize();
 
+    // Keyboard input
     const z = (key.current['KeyW'] ? 1 : 0) - (key.current['KeyS'] ? 1 : 0);
-    const x = (key.current['KeyD'] ? 1 : 0) - (key.current['KeyA'] ? 1 : 0);
+    const xk = (key.current['KeyD'] ? 1 : 0) - (key.current['KeyA'] ? 1 : 0);
+
+    // Mobile joystick input (override keyboard if non-zero)
+    const xm = mobileVec.current.x;
+    const zm = -mobileVec.current.y; // invert: up is negative y
+    const x = Math.abs(xm) > 0.01 ? xm : xk;
+    const zFinal = Math.abs(zm) > 0.01 ? zm : z;
 
     const dir = new THREE.Vector3();
-    if (z) dir.addScaledVector(forward, z);
+    if (zFinal) dir.addScaledVector(forward, zFinal);
     if (x) dir.addScaledVector(right, x);
     if (dir.lengthSq() > 0) dir.normalize();
 
