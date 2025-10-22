@@ -49,45 +49,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const ready = !!ctxRef.current;
 
-  const ensureNodes = useCallback(async () => {
-    if (ctxRef.current) {
-      if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
-      return;
-    }
-
-    const AC = (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
-               (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    const ac: AudioContext = new AC();
-
-    const master = ac.createGain();
-    master.gain.setValueAtTime(muted ? 0 : 1, ac.currentTime);
-    master.connect(ac.destination);
-
-    ctxRef.current = ac;
-    masterGainRef.current = master;
-
-    // If there was a queued music URL set before init(), apply it now
-    if (wantedUrlRef.current) {
-      // fire and forget (no await)
-      _switchTo(wantedUrlRef.current).catch(() => {});
-    }
-  }, [muted]);
-
-  const init = useCallback(async () => {
-    await ensureNodes();
-  }, [ensureNodes]);
-
-  const setMuted = useCallback((m: boolean) => {
-    setMutedState(m);
-    const ac = ctxRef.current;
-    const master = masterGainRef.current;
-    if (ac && master) {
-      const now = ac.currentTime;
-      master.gain.cancelScheduledValues(now);
-      master.gain.linearRampToValueAtTime(m ? 0 : 1, now + 0.05);
-    }
-  }, []);
-
+  // Helper functions defined first
   const loadBuffer = useCallback(async (url: string) => {
     const cached = cacheRef.current.get(url);
     if (cached) return cached;
@@ -131,6 +93,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // iOS Safari: Ensure context is running before we do anything
+    if (ac.state === 'suspended') {
+      try {
+        await ac.resume();
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+      }
+    }
+
     const myId = ++requestIdRef.current;
     setIsLoading(true);
 
@@ -170,6 +141,58 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(false);
   }, [loadBuffer, stop]);
+
+  const ensureNodes = useCallback(async () => {
+    if (ctxRef.current) {
+      if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
+      return;
+    }
+
+    const AC = (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+               (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const ac: AudioContext = new AC();
+
+    const master = ac.createGain();
+    master.gain.setValueAtTime(muted ? 0 : 1, ac.currentTime);
+    master.connect(ac.destination);
+
+    ctxRef.current = ac;
+    masterGainRef.current = master;
+
+    // iOS Safari: Play a silent sound immediately to unlock audio
+    // This must happen synchronously within the user gesture
+    const silentBuffer = ac.createBuffer(1, 1, 22050);
+    const silentSource = ac.createBufferSource();
+    silentSource.buffer = silentBuffer;
+    silentSource.connect(master);
+    silentSource.start();
+
+    // Ensure context is running (critical for iOS)
+    if (ac.state === 'suspended') {
+      await ac.resume();
+    }
+  }, [muted]);
+
+  const init = useCallback(async () => {
+    await ensureNodes();
+    // If there was a queued music URL set before init(), apply it now
+    if (wantedUrlRef.current && ctxRef.current) {
+      await _switchTo(wantedUrlRef.current).catch((e) => {
+        console.error('Failed to start queued music:', e);
+      });
+    }
+  }, [ensureNodes, _switchTo]);
+
+  const setMuted = useCallback((m: boolean) => {
+    setMutedState(m);
+    const ac = ctxRef.current;
+    const master = masterGainRef.current;
+    if (ac && master) {
+      const now = ac.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.linearRampToValueAtTime(m ? 0 : 1, now + 0.05);
+    }
+  }, []);
 
   const setMusic = useCallback(async (url: string | null, opts?: { fadeMs?: number; loop?: boolean }) => {
     wantedUrlRef.current = url;
