@@ -4,6 +4,7 @@ export type WorldDef = {
   name: string;
   url: string;             // .spz or .ply (Spark auto-detects)
   imageUrl: string;
+  musicUrl: string;
   imageCredit?: string;
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
@@ -48,6 +49,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Forest Retreat',
     url: '/worlds/foresthouse.spz',
     imageUrl: '/worlds/foresthouse.jpg',
+    musicUrl: '/music/Sunlit_Grove_Ambient.mp3',
     imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -59,6 +61,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Lofi Seaview',
     url: '/worlds/lofistudy_sunset.spz',
     imageUrl: '/worlds/lofistudy_sunset.jpg',
+    musicUrl: '/music/Sunset_Focus.mp3',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -69,6 +72,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Mainstreet (Night)',
     url: '/worlds/mainstreet_night.spz',
     imageUrl: '/worlds/mainstreet_night.jpg',
+    musicUrl: '/music/Neon_Night_Reverie.mp3',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -79,6 +83,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Rural Retreat',
     url: '/worlds/paddies.spz',
     imageUrl: '/worlds/paddies.jpg',
+    musicUrl: '/music/Tranquil_Fields.mp3',
     imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -90,6 +95,7 @@ export const WORLDS: WorldDef[] = [
     name: 'Simpsons World',
     url: '/worlds/simpsons.spz',
     imageUrl: '/worlds/simpsons.jpeg',
+    musicUrl: '/music/Cartoon_Cozy_Theme.mp3',
     imageCredit: 'Disney',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -101,6 +107,7 @@ export const WORLDS: WorldDef[] = [
     name: 'European City (Sunset)',
     url: '/worlds/europeanurban_sunset.spz',
     imageUrl: '/worlds/europeanurban_sunset.jpg',
+    musicUrl: '/music/Sunset_Boulevard_Serenade.mp3',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
