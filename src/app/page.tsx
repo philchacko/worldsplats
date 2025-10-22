@@ -234,7 +234,7 @@ function PageContent() {
           world={world}
           object={object}
           shootSink={shootRef}
-          projectileSpeed={speed}
+          playerMoveSpeed={speed}
           onLoadingChange={handleLoadingChange}
           mobileInputRef={mobileInputRef}
         />

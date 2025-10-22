@@ -23,8 +23,8 @@ export default function PlayerController({
   radius = 0.33,
   halfHeight = 0.55,
   eyeHeight = 1.0,
-  moveSpeed = 3.5,
-  sprintSpeed = 6.0,
+  moveSpeed = 14.0,
+  sprintSpeed = 28.0,
   jumpSpeed = 6.0,
   start = [0, 1.4, 0],
   mobileInputRef,
@@ -113,7 +113,7 @@ export default function PlayerController({
     if (x) dir.addScaledVector(right, x);
     if (dir.lengthSq() > 0) dir.normalize();
 
-    const speed = (key.current['ShiftLeft'] || key.current['ShiftRight']) ? sprintSpeed : moveSpeed;
+    const speed = (key.current['ShiftLeft'] || key.current['ShiftRight']) ? sprintSpeed * 0.1 : moveSpeed * 0.1;
     const cur = rb.linvel();
     const target = { x: dir.x * speed, y: cur.y, z: dir.z * speed };
     if (dir.lengthSq() > 0 && !Number.isFinite(target.x + target.y + target.z)) {

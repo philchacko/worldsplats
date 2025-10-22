@@ -22,6 +22,7 @@ type Props = {
   object: ObjectDef;
   shootSink: React.RefObject<ShootHandle | null>; // parent can call shoot/clear
   projectileSpeed?: number;
+  playerMoveSpeed?: number;
   onLoadingChange?: (isLoading: boolean, error?: string) => void;
   mobileInputRef?: React.MutableRefObject<{x:number;y:number}>;
 };
@@ -39,6 +40,7 @@ function SceneInner({
   object,
   shootSink,
   projectileSpeed = 18,
+  playerMoveSpeed,
   onLoadingChange,
   mobileInputRef }: Props) {
   const { camera } = useThree();
@@ -85,7 +87,7 @@ function SceneInner({
   return (
     <>
       {/* FPS-style player controls */}
-      <PlayerController mobileInputRef={inputRef} />
+      <PlayerController mobileInputRef={inputRef} moveSpeed={playerMoveSpeed} />
 
       {/* Touch-based camera look for mobile */}
       <TouchLookController />
@@ -122,6 +124,7 @@ export default function WorldScene({
   object,
   shootSink,
   projectileSpeed,
+  playerMoveSpeed,
   onLoadingChange,
   mobileInputRef }: Props) {
   const handleLoadingChange = useCallback((loading: boolean, error?: string) => {
@@ -171,6 +174,7 @@ export default function WorldScene({
         object={object}
         shootSink={shootSink}
         projectileSpeed={projectileSpeed}
+        playerMoveSpeed={playerMoveSpeed}
         onLoadingChange={handleLoadingChange}
         mobileInputRef={mobileInputRef}
       />
