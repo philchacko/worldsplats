@@ -119,16 +119,6 @@ export default function Page() {
             />
           </RapierProvider>
 
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-              <Button
-                className="pointer-events-auto px-6 py-3 rounded-md border border-zinc-700 bg-zinc-900/80 text-base font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
-                onClick={() => {
-                  //requestPointerLock();
-                }}
-                label="Click to play"
-              />
-            </div>
-
           {/* Overlay UI */}
           <div className="pointer-events-auto absolute left-4 top-4 space-y-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
             <NavHeader
