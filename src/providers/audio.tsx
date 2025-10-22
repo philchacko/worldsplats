@@ -1,182 +1,209 @@
+// providers/audio.tsx
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AUDIO_CONFIG, type MusicTrack } from '@/config/audio';
+import { AUDIO_CONFIG } from '@/config/audio';
 
 type AudioAPI = {
-  audioContext: AudioContext | null;
-  init: () => Promise<AudioContext>;
+  /** true if we have an AudioContext */
+  ready: boolean;
+  /** Must be called in a user gesture (Click-to-Play). Safe to call multiple times. */
+  init: () => Promise<void>;
   muted: boolean;
   setMuted: (m: boolean) => void;
-  playMusic: (track: MusicTrack) => Promise<void>;
-  stopMusic: () => void;
+
+  /** Set/replace the looping background music for the app (null = stop). Safe to call anytime. */
+  setMusic: (url: string | null, opts?: { fadeMs?: number; loop?: boolean }) => Promise<void>;
+  /** Stop background music (with an optional quick fade). */
+  stop: (fadeMs?: number) => void;
+
   isLoading: boolean;
-  currentTrack: MusicTrack | null;
+  currentUrl: string | null;
 };
 
 const AudioCtx = createContext<AudioAPI | null>(null);
+const DEFAULT_VOL = AUDIO_CONFIG?.MUSIC_VOLUME ?? 0.15;
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
+  // Core nodes
   const ctxRef = useRef<AudioContext | null>(null);
-  const [muted, setMuted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState<MusicTrack | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const autoplayAttempted = useRef(false);
+  const masterGainRef = useRef<GainNode | null>(null);
 
-  // Audio buffer cache
-  const buffersRef = useRef<Map<string, AudioBuffer>>(new Map());
-
-  // Current music playback
-  const musicSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  // Current music chain
+  const musicSrcRef = useRef<AudioBufferSourceNode | null>(null);
   const musicGainRef = useRef<GainNode | null>(null);
 
-  const init = useCallback(async () => {
+  // State
+  const [muted, setMutedState] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+
+  // Support calling setMusic() before init()
+  const wantedUrlRef = useRef<string | null>(null);
+
+  // Cancel/ignore stale async decodes
+  const requestIdRef = useRef(0);
+
+  // Buffer cache
+  const cacheRef = useRef(new Map<string, AudioBuffer>());
+
+  const ready = !!ctxRef.current;
+
+  const ensureNodes = useCallback(async () => {
     if (ctxRef.current) {
-      // Resume context if suspended (mobile Safari)
-      if (ctxRef.current.state === 'suspended') {
-        await ctxRef.current.resume();
-      }
-      return ctxRef.current;
+      if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
+      return;
     }
 
     const AC = (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
                (window as typeof window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     const ac: AudioContext = new AC();
+
+    const master = ac.createGain();
+    master.gain.setValueAtTime(muted ? 0 : 1, ac.currentTime);
+    master.connect(ac.destination);
+
     ctxRef.current = ac;
-    setInitialized(true);
-    console.log('✓ Audio context initialized');
-    return ac;
-  }, []);
+    masterGainRef.current = master;
 
-  // Load an audio file and cache it
-  const loadAudioBuffer = useCallback(async (url: string): Promise<AudioBuffer> => {
-    const cached = buffersRef.current.get(url);
-    if (cached) return cached;
-
-    const ctx = ctxRef.current;
-    if (!ctx) throw new Error('Audio context not initialized');
-
-    console.log(`Loading audio: ${url}`);
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    buffersRef.current.set(url, audioBuffer);
-    console.log(`✓ Audio loaded: ${url}`);
-    return audioBuffer;
-  }, []);
-
-  // Stop current music
-  const stopMusic = useCallback(() => {
-    if (musicSourceRef.current) {
-      try {
-        musicSourceRef.current.stop();
-      } catch {
-        // Already stopped
-      }
-      musicSourceRef.current = null;
-    }
-    setCurrentTrack(null);
-  }, []);
-
-  // Play background music (looping)
-  const playMusic = useCallback(async (track: MusicTrack) => {
-    const ctx = ctxRef.current;
-    if (!ctx) {
-      console.warn('Audio context not initialized. Call init() first.');
-      return;
-    }
-
-    // Stop current music if playing
-    stopMusic();
-
-    setIsLoading(true);
-    try {
-      const url = AUDIO_CONFIG.MUSIC_FILES[track];
-      const buffer = await loadAudioBuffer(url);
-
-      // Create audio nodes
-      const source = ctx.createBufferSource();
-      const gain = ctx.createGain();
-
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gain);
-      gain.connect(ctx.destination);
-
-      // Set initial volume
-      gain.gain.value = muted ? 0 : AUDIO_CONFIG.MUSIC_VOLUME;
-
-      // Start playback
-      source.start(0);
-
-      // Store references
-      musicSourceRef.current = source;
-      musicGainRef.current = gain;
-      setCurrentTrack(track);
-
-      console.log(`✓ Playing music: ${track}`);
-    } catch (error) {
-      console.error('Failed to play music:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loadAudioBuffer, stopMusic, muted]);
-
-  // Update gain when muted state changes
-  useEffect(() => {
-    if (musicGainRef.current) {
-      musicGainRef.current.gain.value = muted ? 0 : AUDIO_CONFIG.MUSIC_VOLUME;
+    // If there was a queued music URL set before init(), apply it now
+    if (wantedUrlRef.current) {
+      // fire and forget (no await)
+      _switchTo(wantedUrlRef.current).catch(() => {});
     }
   }, [muted]);
 
-  // Attempt auto-play on mount (will be blocked by browser without user gesture)
-  useEffect(() => {
-    if (!autoplayAttempted.current) {
-      autoplayAttempted.current = true;
-      // Try to initialize and play music on load
-      init().then(() => {
-        console.log('Audio auto-initialized on page load');
-      }).catch((e) => {
-        console.log('Auto-play blocked (expected behavior):', e);
-      });
-    }
-  }, [init]);
+  const init = useCallback(async () => {
+    await ensureNodes();
+  }, [ensureNodes]);
 
-  // Auto-play background music when audio context is initialized
-  useEffect(() => {
-    if (initialized && !currentTrack) {
-      // Start playing default music
-      playMusic('SUNLIT_GROVE').catch((e) => {
-        console.error('Failed to auto-play music:', e);
-      });
+  const setMuted = useCallback((m: boolean) => {
+    setMutedState(m);
+    const ac = ctxRef.current;
+    const master = masterGainRef.current;
+    if (ac && master) {
+      const now = ac.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.linearRampToValueAtTime(m ? 0 : 1, now + 0.05);
     }
-  }, [initialized, currentTrack, playMusic]);
+  }, []);
 
-  // Resume audio context on visibility change (mobile Safari)
+  const loadBuffer = useCallback(async (url: string) => {
+    const cached = cacheRef.current.get(url);
+    if (cached) return cached;
+    const ac = ctxRef.current;
+    if (!ac) throw new Error('Audio not initialized');
+    const res = await fetch(url);
+    const arr = await res.arrayBuffer();
+    const buf = await ac.decodeAudioData(arr);
+    cacheRef.current.set(url, buf);
+    return buf;
+  }, []);
+
+  const stop = useCallback((fadeMs: number = 100) => {
+    const ac = ctxRef.current;
+    if (!ac) return;
+    const src = musicSrcRef.current;
+    const gain = musicGainRef.current;
+    if (!src || !gain) return;
+
+    const t = ac.currentTime;
+    const fade = Math.max(0, fadeMs) / 1000;
+
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setValueAtTime(gain.gain.value, t);
+    gain.gain.linearRampToValueAtTime(0, t + fade);
+
+    // Slight delay before stopping to avoid clicks
+    try { src.stop(t + fade + 0.01); } catch {}
+
+    musicSrcRef.current = null;
+    musicGainRef.current = null;
+    setCurrentUrl(null);
+  }, []);
+
+  // Internal: switch to a new URL (atomically)
+  const _switchTo = useCallback(async (url: string, opts?: { fadeMs?: number; loop?: boolean }) => {
+    const ac = ctxRef.current;
+    if (!ac) {
+      // queue until init()
+      wantedUrlRef.current = url;
+      return;
+    }
+
+    const myId = ++requestIdRef.current;
+    setIsLoading(true);
+
+    let buffer: AudioBuffer | null = null;
+    try {
+      buffer = await loadBuffer(url);
+    } catch (e) {
+      if (myId !== requestIdRef.current) return; // superseded
+      setIsLoading(false);
+      console.error('Audio load failed:', e);
+      return;
+    }
+    if (myId !== requestIdRef.current) return; // superseded while decoding
+
+    // Stop any current track (short fade)
+    if (musicSrcRef.current) stop(opts?.fadeMs ?? 120);
+
+    // Build new chain: source -> musicGain -> masterGain -> destination
+    const src = ac.createBufferSource();
+    src.buffer = buffer!;
+    src.loop = opts?.loop ?? true;
+
+    const mg = ac.createGain();
+    mg.gain.setValueAtTime(0, ac.currentTime); // fade in
+    src.connect(mg);
+    mg.connect(masterGainRef.current!);
+
+    src.start();
+
+    musicSrcRef.current = src;
+    musicGainRef.current = mg;
+    setCurrentUrl(url);
+
+    // fade in to content volume (master handles mute)
+    const t = ac.currentTime;
+    mg.gain.linearRampToValueAtTime(DEFAULT_VOL, t + (opts?.fadeMs ?? 120) / 1000);
+
+    setIsLoading(false);
+  }, [loadBuffer, stop]);
+
+  const setMusic = useCallback(async (url: string | null, opts?: { fadeMs?: number; loop?: boolean }) => {
+    wantedUrlRef.current = url;
+    if (!url) {
+      stop(opts?.fadeMs ?? 120);
+      return;
+    }
+    // If not ready yet, we just record wantedUrl; _switchTo runs after init()
+    if (!ctxRef.current) return;
+    await _switchTo(url, opts);
+  }, [_switchTo, stop]);
+
+  // Resume audio when tab becomes visible (iOS/Safari behavior)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const ac = ctxRef.current;
-        if (ac && ac.state !== 'running') {
-          ac.resume().catch(() => {});
-        }
+    const onVis = () => {
+      const ac = ctxRef.current;
+      if (document.visibilityState === 'visible' && ac && ac.state !== 'running') {
+        ac.resume().catch(() => {});
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
   const api = useMemo<AudioAPI>(() => ({
-    audioContext: ctxRef.current,
+    ready,
     init,
     muted,
     setMuted,
-    playMusic,
-    stopMusic,
+    setMusic,
+    stop,
     isLoading,
-    currentTrack,
-  }), [init, muted, playMusic, stopMusic, isLoading, currentTrack]);
+    currentUrl,
+  }), [ready, init, muted, setMuted, setMusic, stop, isLoading, currentUrl]);
 
   return <AudioCtx.Provider value={api}>{children}</AudioCtx.Provider>;
 }

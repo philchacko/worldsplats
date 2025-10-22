@@ -137,7 +137,7 @@ const Divider = () => {
   );
 };
 
-export default function Page() {
+function PageContent() {
   const [world, setWorld] = useState<WorldDef>(WORLDS[0]);
   const [object, setObject] = useState<ObjectDef>(OBJECTS[0]);
   const [speed, setSpeed] = useState<number>(14);
@@ -145,9 +145,15 @@ export default function Page() {
   const [loadError, setLoadError] = useState<string | undefined>();
   const shootRef = useRef<ShootHandle | null>(null);
   const mobileInputRef = useRef<{x:number;y:number}>({x:0,y:0});
+  const { setMusic } = useAudio();
 
   // Return current index of world in WORLDS
   const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
+
+  // Switch music when world changes. This is safe before/after init().
+  React.useEffect(() => {
+    setMusic(world.musicUrl);        // no-op until user clicks play, then it starts
+  }, [world.musicUrl, setMusic]);
 
   const handleBack = () => {
     if (currentIndex > 0) {
@@ -172,9 +178,7 @@ export default function Page() {
   };
 
   return (
-    <PointerLockProvider>
-      <AudioProvider>
-        <div className="relative h-dvh w-dvw bg-black text-white font-sans">
+    <div className="relative h-dvh w-dvw bg-black text-white font-sans">
           {/* 3D */}
           <RapierProvider>
             <WorldScene
@@ -206,7 +210,15 @@ export default function Page() {
           {/* keyboard shortcuts */}
           <ShootHotkey shootRef={shootRef} />
           <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
-        </div>
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <PointerLockProvider>
+      <AudioProvider>
+        <PageContent />
       </AudioProvider>
     </PointerLockProvider>
   );
