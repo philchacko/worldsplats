@@ -96,7 +96,7 @@ function RootUIOverlays({
       <ClickToPlayOverlay visible={!isLocked && !isLoading && !loadError} />
       <Reticle visible={isLocked && !isLoading && !loadError} />
 
-      {/* optional mute button */}
+      {/* Mute button */}
       <IconButton
         aria-label="Toggle volume"
         onClick={() => setMuted(!muted)}

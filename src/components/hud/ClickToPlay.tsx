@@ -10,8 +10,12 @@ export function ClickToPlayOverlay({ visible }: { visible: boolean }) {
   const { init } = useAudio();
 
   const onClick = useCallback(async () => {
-    // Start audio & request pointer lock in the same user gesture
-    try { await init(); } catch {}
+    // Initialize audio context (music will auto-play via AudioProvider effect)
+    try {
+      await init();
+    } catch (e) {
+      console.error('Failed to initialize audio:', e);
+    }
 
     // iOS motion permission (optional)
     try {
