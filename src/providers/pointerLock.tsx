@@ -1,6 +1,10 @@
+// providers/pointerLock.tsx
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext, useCallback, useContext, useEffect,
+  useMemo, useRef, useState
+} from 'react';
 import type { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 
 type PublicAPI = {
@@ -8,11 +12,7 @@ type PublicAPI = {
   lock: (opts?: { unadjustedMovement?: boolean }) => void;
   unlock: () => void;
 };
-
-type InternalAPI = {
-  /** Called by the Canvas bridge to register/unregister actual controls */
-  register: (controls: PointerLockControls | null) => void;
-};
+type InternalAPI = { register: (controls: PointerLockControls | null) => void };
 
 const PointerLockPublicCtx = createContext<PublicAPI | null>(null);
 const PointerLockInternalCtx = createContext<InternalAPI | null>(null);
@@ -21,24 +21,49 @@ export function PointerLockProvider({ children }: { children: React.ReactNode })
   const controlsRef = useRef<PointerLockControls | null>(null);
   const [isLocked, setLocked] = useState(false);
 
-  const lock = useCallback((opts?: { unadjustedMovement?: boolean }) => {
-    controlsRef.current?.lock(opts?.unadjustedMovement ?? false);
+  // Feature detection for Pointer Lock
+  const canPLRef = useRef(false);
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.body) {
+      // requestPointerLock is undefined on iOS Safari
+      canPLRef.current = typeof (document.body as HTMLElement & { requestPointerLock?: () => void }).requestPointerLock === 'function';
+    }
   }, []);
-  const unlock = useCallback(() => controlsRef.current?.unlock(), []);
+
+  // Stable handlers for add/removeEventListener
+  const onLockRef = useRef<() => void>(() => setLocked(true));
+  const onUnlockRef = useRef<() => void>(() => setLocked(false));
+  useEffect(() => {
+    onLockRef.current = () => setLocked(true);
+    onUnlockRef.current = () => setLocked(false);
+  }, []);
+
+  const lock = useCallback((opts?: { unadjustedMovement?: boolean }) => {
+    const c = controlsRef.current;
+    if (c && canPLRef.current) {
+      c.lock(opts?.unadjustedMovement ?? false);
+    } else {
+      // Mobile/touch fallback: enter play mode without Pointer Lock
+      setLocked(true);
+    }
+  }, []);
+
+  const unlock = useCallback(() => {
+    const c = controlsRef.current;
+    if (c && canPLRef.current) c.unlock();
+    else setLocked(false);
+  }, []);
 
   const register = useCallback((controls: PointerLockControls | null) => {
-    // detach old
     if (controlsRef.current) {
-      controlsRef.current.removeEventListener('lock', onLock);
-      controlsRef.current.removeEventListener('unlock', onUnlock);
+      controlsRef.current.removeEventListener('lock', onLockRef.current);
+      controlsRef.current.removeEventListener('unlock', onUnlockRef.current);
     }
     controlsRef.current = controls ?? null;
     if (controls) {
-      controls.addEventListener('lock', onLock);
-      controls.addEventListener('unlock', onUnlock);
+      controls.addEventListener('lock', onLockRef.current);
+      controls.addEventListener('unlock', onUnlockRef.current);
     }
-    function onLock()  { setLocked(true); }
-    function onUnlock(){ setLocked(false); }
   }, []);
 
   const pub = useMemo<PublicAPI>(() => ({ isLocked, lock, unlock }), [isLocked, lock, unlock]);
@@ -56,8 +81,6 @@ export function usePointerLock(): PublicAPI {
   if (!ctx) throw new Error('usePointerLock must be used within PointerLockProvider');
   return ctx;
 }
-
-/** Used only inside Canvas to supply the actual controls instance */
 export function usePointerLockRegistration(): InternalAPI {
   const ctx = useContext(PointerLockInternalCtx);
   if (!ctx) throw new Error('usePointerLockRegistration must be used within PointerLockProvider');

@@ -17,7 +17,8 @@ export default function MobileHud({
   return (
     <VirtualStick
       onChange={(v) => {
-        mobileInputRef.current = v;
+        mobileInputRef.current.x = v.x;
+        mobileInputRef.current.y = v.y;
       }}
     />
   );

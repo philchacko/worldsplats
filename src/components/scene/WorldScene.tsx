@@ -164,6 +164,7 @@ export default function WorldScene({
       }}
     >
       <PointerLockBridge />
+      <TouchLookController />
 
       <SceneInner
         world={world}
