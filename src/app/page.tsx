@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { RapierProvider } from '@/physics';
 import { NavHeader } from "@/components/hud/NavHeader";
-import { Spinner } from "@/icons";
+import { Spinner, VolumeMaxLine, VolumeXLine } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
@@ -12,7 +12,7 @@ import { AudioProvider, useAudio } from '@/providers/audio';
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
 import { ClickToPlayOverlay, Reticle } from '@/components/hud/ClickToPlay';
-import { Button } from '@/components/hud/Button';
+import { IconButton } from '@/components/hud/Button';
 
 function RootUIOverlays({
   isLoading,
@@ -29,14 +29,12 @@ function RootUIOverlays({
       <Reticle visible={isLocked && !isLoading && !loadError} />
 
       {/* optional mute button */}
-      <button
+      <IconButton
         aria-label="Toggle volume"
-        title="Toggle volume"
         onClick={() => setMuted(!muted)}
-        className="absolute top-2 right-2 z-10 bg-black/50 text-white border border-zinc-600 rounded px-2 py-1"
-      >
-        {muted ? '🔇' : '🔊'}
-      </button>
+        className="absolute top-4 right-4 z-10 stroke-secondary"
+        icon={muted ? <VolumeXLine /> : <VolumeMaxLine />}
+      />
 
       {/* Loading overlay (kept from your code) */}
       {(isLoading || loadError) && (
