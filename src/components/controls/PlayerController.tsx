@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
-import { PointerLockControls } from '@react-three/drei';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { usePointerLock } from '@/providers/pointerLock';
 import * as THREE from 'three';
 import { useRapierWorld, RapierRigidBody } from '@/physics';
 
@@ -29,6 +29,7 @@ export default function PlayerController({
 }: Props) {
   const { camera } = useThree();
   const { world, rapier, playerBody } = useRapierWorld();
+  const { isLocked } = usePointerLock();
   const bodyRef = useRef<RapierRigidBody | null>(playerBody);
   const key = useRef<Record<string, boolean>>({});
   const jumpRequested = useRef(false);
@@ -87,6 +88,7 @@ export default function PlayerController({
   useFrame(() => {
     const rb = bodyRef.current;
     if (!rb) return;
+    if (!isLocked) return;  
 
     camera.getWorldDirection(forward);
     forward.y = 0; forward.normalize();
@@ -121,11 +123,5 @@ export default function PlayerController({
     camera.position.set(p.x, feetY + eyeHeight, p.z);
   });
 
-  return (
-    <PointerLockControls
-      makeDefault
-      onLock={() => onLockChange?.(true)}
-      onUnlock={() => onLockChange?.(false)}
-    />
-  );
+  return null;
 }

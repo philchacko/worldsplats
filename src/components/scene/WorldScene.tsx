@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
+import PointerLockBridge from '@/components/scene/PointerLockBridge';
 import type { WorldDef, ObjectDef } from '@/data/presets';
 
 export type ShootHandle = {
@@ -150,6 +151,8 @@ export default function WorldScene({
         console.log('Three.js Canvas created successfully', dbg);
       }}
     >
+      <PointerLockBridge />
+
       <SceneInner
         world={world}
         object={object}

@@ -6,9 +6,64 @@ import { NavHeader } from "@/components/hud/NavHeader";
 import { Spinner } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
+import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
+import { AudioProvider, useAudio } from '@/providers/audio';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
+import { ClickToPlayOverlay, Reticle } from '@/components/hud/ClickToPlay';
+import { Button } from '@/components/hud/Button';
+
+function RootUIOverlays({
+  isLoading,
+  loadError,
+}: {
+  isLoading: boolean; loadError?: string;
+}) {
+  const { isLocked } = usePointerLock();
+  const { muted, setMuted } = useAudio();
+
+  return (
+    <>
+      <ClickToPlayOverlay visible={!isLocked && !isLoading && !loadError} />
+      <Reticle visible={isLocked && !isLoading && !loadError} />
+
+      {/* optional mute button */}
+      <button
+        aria-label="Toggle volume"
+        title="Toggle volume"
+        onClick={() => setMuted(!muted)}
+        className="absolute top-2 right-2 z-10 bg-black/50 text-white border border-zinc-600 rounded px-2 py-1"
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
+
+      {/* Loading overlay (kept from your code) */}
+      {(isLoading || loadError) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10">
+          <div className="flex flex-col items-center gap-4 p-6 rounded-xl bg-zinc-900/90 border border-zinc-800">
+            {isLoading ? (
+              <>
+                <Spinner size={32} className="text-white" />
+                <p className="text-white text-sm">Loading world...</p>
+              </>
+            ) : (
+              <>
+                <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">!</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-red-400 text-sm font-medium">Failed to load world</p>
+                  <p className="text-zinc-400 text-xs mt-1 max-w-xs">{loadError}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 const Divider = () => {
   return (
@@ -50,89 +105,82 @@ export default function Page() {
   };
 
   return (
-    <div className="relative h-dvh w-dvw bg-black text-white font-sans">
-      {/* 3D */}
-      <RapierProvider>
-        <WorldScene
-          world={world}
-          object={object}
-          shootSink={shootRef} 
-          projectileSpeed={speed}
-          onLoadingChange={handleLoadingChange}
-        />
-      </RapierProvider>
+    <PointerLockProvider>
+      <AudioProvider>
+        <div className="relative h-dvh w-dvw bg-black text-white font-sans">
+          {/* 3D */}
+          <RapierProvider>
+            <WorldScene
+              world={world}
+              object={object}
+              shootSink={shootRef} 
+              projectileSpeed={speed}
+              onLoadingChange={handleLoadingChange}
+            />
+          </RapierProvider>
 
-      {/* Overlay UI */}
-      <div className="pointer-events-auto absolute left-4 top-4 space-y-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
-        <NavHeader
-          title={world.name}
-          detail={`${currentIndex + 1} of ${WORLDS.length}`}
-          onBack={handleBack}
-          onForward={handleForward}
-        />
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <Button
+                className="pointer-events-auto px-6 py-3 rounded-md border border-zinc-700 bg-zinc-900/80 text-base font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
+                onClick={() => {
+                  //requestPointerLock();
+                }}
+                label="Click to play"
+              />
+            </div>
 
-        <Divider />
+          {/* Overlay UI */}
+          <div className="pointer-events-auto absolute left-4 top-4 space-y-4 flex w-[400px] flex-col rounded-lg border border-normal bg-zinc-900/70 p-4 bg-root backdrop-blur">
+            <NavHeader
+              title={world.name}
+              detail={`${currentIndex + 1} of ${WORLDS.length}`}
+              onBack={handleBack}
+              onForward={handleForward}
+            />
 
-        <label className="flex items-center gap-3 text-xs">
-          <span className="pr-4">Speed</span>
-          <input
-            type="range" min={2} max={40} step={1}
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-            className="w-full"
-          />
-          <span className="w-10 text-right tabular-nums">{speed}</span>
-        </label>
+            <Divider />
 
-        <p className="text-xs text-secondary">
-          Movement: W/A/S/D + mouse.
-          <br />
-          Navigation: ←/→ or Q/E.
-        </p>
+            <label className="flex items-center gap-3 text-xs">
+              <span className="pr-4">Speed</span>
+              <input
+                type="range" min={2} max={40} step={1}
+                value={speed}
+                onChange={(e) => setSpeed(Number(e.target.value))}
+                className="w-full"
+              />
+              <span className="w-10 text-right tabular-nums">{speed}</span>
+            </label>
 
-        <Divider />
-        <div className="space-y-1">
-          <p className="text-xs text-secondary">Prompt image</p>
-          <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-secondary">World guide</p>
-          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
-        </div>
-        {world.imageCredit && <div className="space-y-1">
-          <p className="text-xs text-secondary">Image credit</p>
-          <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
-        </div>}
-      </div>
+            <p className="text-xs text-secondary">
+              Movement: W/A/S/D + mouse.
+              <br />
+              Navigation: ←/→ or Q/E.
+            </p>
 
-      {/* Loading overlay */}
-      {(isLoading || loadError) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10">
-          <div className="flex flex-col items-center gap-4 p-6 rounded-xl bg-zinc-900/90 border border-zinc-800">
-            {isLoading ? (
-              <>
-                <Spinner size={32} className="text-white" />
-                <p className="text-white text-sm">Loading world...</p>
-              </>
-            ) : loadError ? (
-              <>
-                <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">!</span>
-                </div>
-                <div className="text-center">
-                  <p className="text-red-400 text-sm font-medium">Failed to load world</p>
-                  <p className="text-zinc-400 text-xs mt-1 max-w-xs">{loadError}</p>
-                </div>
-              </>
-            ) : null}
+            <Divider />
+            <div className="space-y-1">
+              <p className="text-xs text-secondary">Prompt image</p>
+              <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-secondary">World guide</p>
+              <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
+            </div>
+            {world.imageCredit && <div className="space-y-1">
+              <p className="text-xs text-secondary">Image credit</p>
+              <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
+            </div>}
           </div>
-        </div>
-      )}
 
-      {/* keyboard shortcuts */}
-      <ShootHotkey shootRef={shootRef} />
-      <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
-    </div>
+          {/* Click-to-play + reticle + loading overlays */}
+          <RootUIOverlays isLoading={isLoading} loadError={loadError} />
+
+          {/* keyboard shortcuts */}
+          <ShootHotkey shootRef={shootRef} />
+          <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
+        </div>
+      </AudioProvider>
+    </PointerLockProvider>
   );
 }
 
