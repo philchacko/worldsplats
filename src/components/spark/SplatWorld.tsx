@@ -44,17 +44,16 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
     try {
       const t0 = performance.now();
       console.log(`Loading splat mesh from: ${url}`);
-        
-        // Check if URL is accessible (for local files)
-        let abortController: AbortController | null = null;
+
+        // Check if URL is accessible (for local files only)
         if (url.startsWith('/')) {
           try {
-            abortController = new AbortController();
-            const response = await fetch(url, { method: 'HEAD', signal: abortController.signal });
+            const response = await fetch(url, { method: 'HEAD' });
             if (!response.ok) {
               throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
             }
           } catch (fetchError) {
+            if ((loadSplatMesh as unknown as { currentToken?: string }).currentToken !== loadToken) return;
             console.error('Failed to fetch splat file:', fetchError);
             setLoadError(`Failed to load splat file: ${url}`);
             setIsLoading(false);
@@ -64,7 +63,6 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
 
         // If a newer call started, bail out before heavy work
         if ((loadSplatMesh as unknown as { currentToken?: string }).currentToken !== loadToken) {
-          abortController?.abort();
           return;
         }
 

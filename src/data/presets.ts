@@ -1,4 +1,30 @@
 // src/data/presets.ts
+
+// ─── Asset mode ─────────────────────────────────────────────
+// 'local'    → serve from /public  (no network dependency, good for dev)
+// 'supabase' → stream from Supabase Storage (scalable, assets live remotely)
+export type AssetMode = 'local' | 'supabase';
+export const ASSET_MODE: AssetMode = (process.env.NEXT_PUBLIC_ASSET_MODE as AssetMode) || 'local';
+
+// Base URL for Supabase Storage public bucket.
+// Only used when ASSET_MODE === 'supabase'.
+// Set via NEXT_PUBLIC_SUPABASE_STORAGE_BASE or edit the fallback below.
+export const SUPABASE_STORAGE_BASE =
+  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BASE ||
+  'https://YOUR_PROJECT.supabase.co/storage/v1/object/public';
+
+/** Resolve an asset path depending on current mode. */
+function assetUrl(localPath: string, remotePath: string): string {
+  return ASSET_MODE === 'supabase'
+    ? `${SUPABASE_STORAGE_BASE}/${remotePath}`
+    : localPath;
+}
+
+/** Derive the collider .glb URL from a splat .spz URL by replacing the extension. */
+export function colliderUrlFromSplatUrl(splatUrl: string): string {
+  return splatUrl.replace(/\.(spz|ply)$/, '.glb');
+}
+
 export type WorldDef = {
   id: string;
   name: string;
@@ -6,6 +32,7 @@ export type WorldDef = {
   imageUrl: string;
   musicUrl: string;
   imageCredit?: string;
+  colliderUrl?: string;    // per-world collider .glb — defaults to splat URL with .glb extension
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
@@ -32,24 +59,13 @@ export type ObjectDef =
       collider?: 'hull'; // for complex meshes
     };
 
-// NOTE: Keep a few .spz worlds; you can swap/add your own under /public/splats and switch to relative URLs later.
-// Spark demo asset:
 export const WORLDS: WorldDef[] = [
-  // {
-  //   id: 'butterfly',
-  //   name: 'Butterfly (Spark demo)',
-  //   url: 'https://sparkjs.dev/assets/splats/butterfly.spz',
-  //   position: [0, 0, -3],
-  //   // Spark quickstart rotates X by 180°; optional. You can experiment per asset.
-  //   quaternion: [1, 0, 0, 0],
-  //   scale: 1,
-  // },
   {
     id: 'forest-retreat',
     name: 'Forest Retreat',
-    url: '/worlds/foresthouse.spz',
-    imageUrl: '/worlds/foresthouse.jpg',
-    musicUrl: '/music/Sunlit_Grove_Ambient.mp3',
+    url: assetUrl('/worlds/foresthouse.spz', 'worlds/foresthouse.spz'),
+    imageUrl: assetUrl('/worlds/foresthouse.jpg', 'worlds/foresthouse.jpg'),
+    musicUrl: assetUrl('/music/Sunlit_Grove_Ambient.mp3', 'music/Sunlit_Grove_Ambient.mp3'),
     imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -59,9 +75,9 @@ export const WORLDS: WorldDef[] = [
   {
     id: 'lofi-seaview',
     name: 'Lofi Seaview',
-    url: '/worlds/lofistudy_sunset.spz',
-    imageUrl: '/worlds/lofistudy_sunset.jpg',
-    musicUrl: '/music/Sunset_Focus.mp3',
+    url: assetUrl('/worlds/lofistudy_sunset.spz', 'worlds/lofistudy_sunset.spz'),
+    imageUrl: assetUrl('/worlds/lofistudy_sunset.jpg', 'worlds/lofistudy_sunset.jpg'),
+    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -70,9 +86,9 @@ export const WORLDS: WorldDef[] = [
   {
     id: 'mainstreet-night',
     name: 'Mainstreet (Night)',
-    url: '/worlds/mainstreet_night.spz',
-    imageUrl: '/worlds/mainstreet_night.jpg',
-    musicUrl: '/music/Neon_Night_Reverie.mp3',
+    url: assetUrl('/worlds/mainstreet_night.spz', 'worlds/mainstreet_night.spz'),
+    imageUrl: assetUrl('/worlds/mainstreet_night.jpg', 'worlds/mainstreet_night.jpg'),
+    musicUrl: assetUrl('/music/Neon_Night_Reverie.mp3', 'music/Neon_Night_Reverie.mp3'),
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
@@ -81,9 +97,9 @@ export const WORLDS: WorldDef[] = [
   {
     id: 'rural-retreat',
     name: 'Rural Retreat',
-    url: '/worlds/paddies.spz',
-    imageUrl: '/worlds/paddies.jpg',
-    musicUrl: '/music/Tranquil_Fields.mp3',
+    url: assetUrl('/worlds/paddies.spz', 'worlds/paddies.spz'),
+    imageUrl: assetUrl('/worlds/paddies.jpg', 'worlds/paddies.jpg'),
+    musicUrl: assetUrl('/music/Tranquil_Fields.mp3', 'music/Tranquil_Fields.mp3'),
     imageCredit: 'Kyra_Starr (Pixabay)',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -93,9 +109,9 @@ export const WORLDS: WorldDef[] = [
   {
     id: 'simpsons',
     name: 'Simpsons World',
-    url: '/worlds/simpsons.spz',
-    imageUrl: '/worlds/simpsons.jpeg',
-    musicUrl: '/music/Cartoon_Cozy_Theme.mp3',
+    url: assetUrl('/worlds/simpsons.spz', 'worlds/simpsons.spz'),
+    imageUrl: assetUrl('/worlds/simpsons.jpeg', 'worlds/simpsons.jpeg'),
+    musicUrl: assetUrl('/music/Cartoon_Cozy_Theme.mp3', 'music/Cartoon_Cozy_Theme.mp3'),
     imageCredit: 'Disney',
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -105,9 +121,9 @@ export const WORLDS: WorldDef[] = [
   {
     id: 'european-city-sunset',
     name: 'European City (Sunset)',
-    url: '/worlds/europeanurban_sunset.spz',
-    imageUrl: '/worlds/europeanurban_sunset.jpg',
-    musicUrl: '/music/Sunset_Boulevard_Serenade.mp3',
+    url: assetUrl('/worlds/europeanurban_sunset.spz', 'worlds/europeanurban_sunset.spz'),
+    imageUrl: assetUrl('/worlds/europeanurban_sunset.jpg', 'worlds/europeanurban_sunset.jpg'),
+    musicUrl: assetUrl('/music/Sunset_Boulevard_Serenade.mp3', 'music/Sunset_Boulevard_Serenade.mp3'),
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,

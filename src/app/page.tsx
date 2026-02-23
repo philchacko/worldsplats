@@ -10,7 +10,7 @@ import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
-import { WORLDS, OBJECTS, type WorldDef, type ObjectDef } from '@/data/presets';
+import { WORLDS, OBJECTS, colliderUrlFromSplatUrl, type WorldDef, type ObjectDef } from '@/data/presets';
 import { Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
@@ -229,7 +229,7 @@ function PageContent() {
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D Canvas - fills entire viewport */}
-      <RapierProvider>
+      <RapierProvider colliderUrl={world.colliderUrl ?? colliderUrlFromSplatUrl(world.url)}>
         <WorldScene
           world={world}
           object={object}

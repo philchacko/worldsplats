@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import Floor from '@/components/environment/Floor';
 import * as THREE from 'three';
 
 import SparkLayer from '@/components/spark/SparkLayer';
@@ -91,9 +90,6 @@ function SceneInner({
 
       {/* Touch-based camera look for mobile */}
       <TouchLookController />
-
-      {/* Environment collision mesh (visuals only, physics in provider) */}
-      <Floor visible={false} />
 
       {/* Spark renderer + the current Splat world */}
       <SparkLayer />

@@ -18,9 +18,11 @@ const MAX_STEPS = 5;
 
 export function RapierProvider({
   gravity = UNIVERSE_CONFIG.GRAVITY,
+  colliderUrl,
   children,
 }: {
   gravity?: { x: number; y: number; z: number };
+  colliderUrl?: string;
   children: React.ReactNode;
 }) {
   const [rapierReady, setRapierReady] = useState(false);
@@ -78,49 +80,56 @@ export function RapierProvider({
     return () => { mounted = false; };
   }, [rapierReady]);
 
-  // Load environment collision mesh and build fixed trimesh colliders
+  // Load environment collision mesh and build fixed trimesh colliders.
+  // Re-runs when colliderUrl changes (world switch).
   useEffect(() => {
-    if (!rapierReady) return;
+    if (!rapierReady || !colliderUrl) return;
     const world = worldRef.current;
     const rapier = rapierRef.current;
     if (!world || !rapier) return;
     let disposed = false;
     const loader = new GLTFLoader();
-    const url = UNIVERSE_CONFIG.ENVIRONMENT.MESH;
-    loader.load(url, (gltf) => {
-      if (disposed) return;
-      const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
-      envBodyRef.current = body;
-      const created: RAPIER.Collider[] = [];
-      gltf.scene.updateMatrixWorld(true);
-      gltf.scene.traverse((child: THREE.Object3D) => {
-        // @ts-expect-error narrow at runtime
-        if (!(child as THREE.Object3D).isMesh || !(child as THREE.Object3D).geometry) return;
-        const mesh = child as THREE.Object3D;
-        // @ts-expect-error narrow at runtime
-        const geom = child.geometry;
-        mesh.updateWorldMatrix(true, false);
-        geom.applyMatrix4(mesh.matrixWorld);
-        const posAttr = geom.getAttribute('position') as THREE.BufferAttribute | null;
-        if (!posAttr) return;
-        const vertices = new Float32Array(posAttr.array);
-        let indices: Uint32Array;
-        if (geom.index) indices = new Uint32Array((geom.index as THREE.BufferAttribute).array as ArrayLike<number>);
-        else {
-          const count = posAttr.count;
-          indices = new Uint32Array(count);
-          for (let i = 0; i < count; i++) indices[i] = i;
-        }
-        const colDesc = rapier
-          .ColliderDesc.trimesh(vertices, indices)
-          .setRestitution(UNIVERSE_CONFIG.ENVIRONMENT_RESTITUTION);
-        const col = world.createCollider(colDesc, body);
-        created.push(col);
-      });
-      envCollidersRef.current = created;
-      // eslint-disable-next-line no-console
-      console.log('✓ Environment collision mesh loaded');
-    });
+    loader.load(
+      colliderUrl,
+      (gltf) => {
+        if (disposed) return;
+        const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
+        envBodyRef.current = body;
+        const created: RAPIER.Collider[] = [];
+        gltf.scene.updateMatrixWorld(true);
+        gltf.scene.traverse((child: THREE.Object3D) => {
+          // @ts-expect-error narrow at runtime
+          if (!(child as THREE.Object3D).isMesh || !(child as THREE.Object3D).geometry) return;
+          const mesh = child as THREE.Object3D;
+          // @ts-expect-error narrow at runtime
+          const geom = child.geometry;
+          mesh.updateWorldMatrix(true, false);
+          geom.applyMatrix4(mesh.matrixWorld);
+          const posAttr = geom.getAttribute('position') as THREE.BufferAttribute | null;
+          if (!posAttr) return;
+          const vertices = new Float32Array(posAttr.array);
+          let indices: Uint32Array;
+          if (geom.index) indices = new Uint32Array((geom.index as THREE.BufferAttribute).array as ArrayLike<number>);
+          else {
+            const count = posAttr.count;
+            indices = new Uint32Array(count);
+            for (let i = 0; i < count; i++) indices[i] = i;
+          }
+          const colDesc = rapier
+            .ColliderDesc.trimesh(vertices, indices)
+            .setRestitution(UNIVERSE_CONFIG.ENVIRONMENT_RESTITUTION);
+          const col = world.createCollider(colDesc, body);
+          created.push(col);
+        });
+        envCollidersRef.current = created;
+        console.log(`✓ Environment collision mesh loaded: ${colliderUrl}`);
+      },
+      undefined,
+      (error) => {
+        if (disposed) return;
+        console.warn(`Failed to load collider mesh: ${colliderUrl}`, error);
+      },
+    );
     return () => {
       disposed = true;
       const world = worldRef.current;
@@ -132,7 +141,18 @@ export function RapierProvider({
         envBodyRef.current = null;
       }
     };
-  }, [rapierReady]);
+  }, [rapierReady, colliderUrl]);
+
+  // Reset player position when world changes (colliderUrl changes)
+  useEffect(() => {
+    if (!playerBodyRef.current || !colliderUrl) return;
+    const { START } = UNIVERSE_CONFIG.PLAYER;
+    playerBodyRef.current.setTranslation(
+      { x: START[0], y: START[1], z: START[2] },
+      true,
+    );
+    playerBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  }, [colliderUrl]);
 
   // Create player rigid body and capsule collider
   useEffect(() => {

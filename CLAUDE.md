@@ -31,7 +31,7 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 #### 3D Rendering (Spark/Three.js)
 - `src/components/spark/SparkLayer.tsx` - Spark renderer integration (attached to camera)
 - `src/components/spark/SplatWorld.tsx` - Loads and displays .spz/.ply splat files with loading states
-- `src/components/environment/Floor.tsx` - Collision floor for physics
+- `src/components/environment/Floor.tsx` - Visual collider mesh for debugging (not rendered in production)
 
 #### Controls & Input
 - `src/components/controls/PlayerController.tsx` - WASD camera movement with mobile input support
@@ -59,9 +59,14 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 
 **World/Object System**:
 - `WorldDef` defines splat worlds (.spz/.ply files) with position, rotation, scale, music URL, and metadata
+- **Dual asset mode** controlled by `NEXT_PUBLIC_ASSET_MODE` env var (or `ASSET_MODE` in presets.ts):
+  - `'local'` (default) — serve from `/public` (no network dependency, good for dev)
+  - `'supabase'` — stream from Supabase Storage (`NEXT_PUBLIC_SUPABASE_STORAGE_BASE`)
+- Each world has its own `.glb` collider mesh, co-located with the `.spz` file (same base name, `.glb` extension)
+- `colliderUrlFromSplatUrl()` helper derives the collider URL from the splat URL by convention
 - `ObjectDef` defines shootable objects (primitives or GLTF models) with physics properties
 
-**Physics**: Uses Rapier for realistic physics simulation with configurable mass, colliders, and gravity.
+**Physics**: Uses Rapier for realistic physics simulation with configurable mass, colliders, and gravity. Environment colliders are loaded per-world via `RapierProvider`'s `colliderUrl` prop — when the world changes, old colliders are removed and new ones are loaded. Player position resets to spawn on world switch.
 
 **Camera Controls**:
 - Desktop: Pointer lock mode with WASD movement and mouse look
@@ -97,24 +102,41 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 
 #### Adding New Worlds
 
-Update `src/data/presets.ts`:
+1. Upload assets to Supabase Storage (public bucket):
+   - `.spz` splat file → `worlds/myworld.spz`
+   - `.glb` collider mesh → `worlds/myworld.glb` (same base name as splat)
+   - `.jpg` thumbnail → `worlds/myworld.jpg`
+   - `.mp3` music → `music/myworld.mp3`
+
+2. Add entry to `src/data/presets.ts`:
 
 ```typescript
 {
   id: 'my-world',
   name: 'My World',
-  url: '/worlds/myworld.spz',
-  imageUrl: '/worlds/myworld.jpg',
-  musicUrl: '/music/myworld.mp3',
+  url: assetUrl('/worlds/myworld.spz', 'worlds/myworld.spz'),
+  imageUrl: assetUrl('/worlds/myworld.jpg', 'worlds/myworld.jpg'),
+  musicUrl: assetUrl('/music/myworld.mp3', 'music/myworld.mp3'),
+  // colliderUrl is derived automatically from url (.spz → .glb)
+  // Override with colliderUrl if the collider is at a different path
   position: [0, 0, 0],
   quaternion: [0, 0, 0, 1],
-  scale: [1, 1, 1],
+  scale: 1,
   guide: 'Description of your world...',
   imageCredit: 'Photo credit (optional)'
 }
 ```
 
-Place assets in `/public/worlds/` and `/public/music/`.
+The `assetUrl(localPath, remotePath)` helper resolves to a local `/public` path or Supabase Storage URL depending on `ASSET_MODE`.
+
+#### Asset Mode Configuration
+
+| Env var | Values | Default | Purpose |
+|---------|--------|---------|---------|
+| `NEXT_PUBLIC_ASSET_MODE` | `local` / `supabase` | `local` | Where to load assets from |
+| `NEXT_PUBLIC_SUPABASE_STORAGE_BASE` | URL | — | Supabase Storage base URL (required for `supabase` mode) |
+
+For local development, keep the default `local` mode and place assets in `/public/worlds/` and `/public/music/`. For production with Supabase, set both env vars in `.env.local` or your hosting provider.
 
 #### Performance Settings
 
@@ -215,9 +237,15 @@ npm start
 
 **Debugging audio issues:**
 - Check browser console for audio initialization errors
-- Verify files exist in `/public/music/`
+- Verify music URLs resolve on Supabase Storage (check CORS and bucket visibility)
 - Ensure user interaction occurred before audio.init()
 - Check AudioContext state (running vs suspended)
+
+**Debugging collider issues:**
+- Check console for `✓ Environment collision mesh loaded: <url>` on world switch
+- If player falls through, verify the `.glb` file exists at the derived URL
+- Use `<Floor url={colliderUrl} visible={true} />` in WorldScene to visualize the collider mesh
+- Check Network tab for 404s on `.glb` requests
 
 ### Code Style Notes
 
