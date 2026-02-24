@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import type { SplatMesh } from '@sparkjsdev/spark';
+
+export type SplatBounds = {
+  center: [number, number, number];
+  size: [number, number, number];
+};
 
 type Props = {
   url: string;
@@ -10,13 +16,14 @@ type Props = {
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
   onLoadingChange?: (isLoading: boolean, error?: string) => void;
+  onBoundsReady?: (bounds: SplatBounds) => void;
 };
 
 /**
  * Imperatively adds a SplatMesh to the scene (simplest interop).
  * You could also "extend" Spark classes to use JSX <primitive />, but this is robust & minimal.
  */
-export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scale = 1, onLoadingChange }: Props) {
+export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scale = 1, onLoadingChange, onBoundsReady }: Props) {
   const { scene } = useThree();
   const meshRef = useRef<SplatMesh | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,6 +99,28 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
           }
           
           scene.add(mesh);
+
+          // Compute bounding box and notify parent
+          try {
+            const box = mesh.getBoundingBox();
+            const center = new THREE.Vector3();
+            const size = new THREE.Vector3();
+            box.getCenter(center);
+            box.getSize(size);
+            // Transform center by the mesh's world transform
+            center.applyMatrix4(mesh.matrixWorld);
+            console.log('Splat bounds', {
+              center: [center.x, center.y, center.z].map(v => +v.toFixed(2)),
+              size: [size.x, size.y, size.z].map(v => +v.toFixed(2)),
+            });
+            onBoundsReady?.({
+              center: [center.x, center.y, center.z],
+              size: [size.x, size.y, size.z],
+            });
+          } catch (boundsError) {
+            console.warn('Could not compute splat bounds:', boundsError);
+          }
+
           setIsLoading(false);
           
         } catch (initError) {
@@ -106,7 +135,7 @@ export default function SplatWorld({ url, position = [0, 0, 0], quaternion, scal
         setLoadError(`Error loading splat: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setIsLoading(false);
       }
-    }, [scene, url, position, quaternion, scale]);
+    }, [scene, url, position, quaternion, scale, onBoundsReady]);
 
   useEffect(() => {
     loadSplatMesh();

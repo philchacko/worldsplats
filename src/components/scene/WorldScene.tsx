@@ -6,6 +6,7 @@ import * as THREE from 'three';
 
 import SparkLayer from '@/components/spark/SparkLayer';
 import SplatWorld from '@/components/spark/SplatWorld';
+import type { SplatBounds } from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
 import PointerLockBridge from '@/components/scene/PointerLockBridge';
 import TouchLookController from '@/components/controls/TouchLookController';
@@ -23,6 +24,7 @@ type Props = {
   projectileSpeed?: number;
   playerMoveSpeed?: number;
   onLoadingChange?: (isLoading: boolean, error?: string) => void;
+  onBoundsReady?: (bounds: SplatBounds) => void;
   mobileInputRef?: React.MutableRefObject<{x:number;y:number}>;
 };
 
@@ -41,6 +43,7 @@ function SceneInner({
   projectileSpeed = 18,
   playerMoveSpeed,
   onLoadingChange,
+  onBoundsReady,
   mobileInputRef }: Props) {
   const { camera } = useThree();
   const [spawned, setSpawned] = useState<Spawned[]>([]);
@@ -93,13 +96,14 @@ function SceneInner({
 
       {/* Spark renderer + the current Splat world */}
       <SparkLayer />
-      <SplatWorld 
-        key={world.url} 
-        url={world.url} 
-        position={world.position} 
-        quaternion={world.quaternion} 
+      <SplatWorld
+        key={world.url}
+        url={world.url}
+        position={world.position}
+        quaternion={world.quaternion}
         scale={world.scale}
         onLoadingChange={handleLoadingChange}
+        onBoundsReady={onBoundsReady}
       />
 
       {/* Usual lighting for mesh-based objects */}
@@ -122,6 +126,7 @@ export default function WorldScene({
   projectileSpeed,
   playerMoveSpeed,
   onLoadingChange,
+  onBoundsReady,
   mobileInputRef }: Props) {
   const handleLoadingChange = useCallback((loading: boolean, error?: string) => {
     onLoadingChange?.(loading, error);
@@ -172,6 +177,7 @@ export default function WorldScene({
         projectileSpeed={projectileSpeed}
         playerMoveSpeed={playerMoveSpeed}
         onLoadingChange={handleLoadingChange}
+        onBoundsReady={onBoundsReady}
         mobileInputRef={mobileInputRef}
       />
     </Canvas>
