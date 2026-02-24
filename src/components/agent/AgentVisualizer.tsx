@@ -28,7 +28,7 @@ const _color = new THREE.Color();
  * and agent marker as Three.js objects inside the R3F Canvas.
  */
 export default function AgentVisualizer() {
-  const { showViz, vizDataRef } = useAgent();
+  const { enabled, showViz, vizDataRef } = useAgent();
 
   const gridRef = useRef<THREE.InstancedMesh>(null);
   const lidarRef = useRef<THREE.LineSegments>(null);
@@ -62,7 +62,7 @@ export default function AgentVisualizer() {
 
   // Update visualization each frame (no React state, just imperative Three.js)
   useFrame(() => {
-    if (!showViz) return;
+    if (!enabled || !showViz) return;
     const data = vizDataRef.current;
     if (!data) return;
 
@@ -154,7 +154,7 @@ export default function AgentVisualizer() {
     }
   });
 
-  if (!showViz) return null;
+  if (!enabled || !showViz) return null;
 
   return (
     <group>
