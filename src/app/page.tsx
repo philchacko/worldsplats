@@ -9,6 +9,8 @@ import WorldScene from "@/components/scene/WorldScene";
 import type { SplatBounds } from '@/components/spark/SplatWorld';
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
+import { AgentProvider } from '@/providers/agent';
+import AgentHud from '@/components/agent/AgentHud';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, ASSET_MODE, colliderUrlFromSplatUrl, type WorldDef, type ObjectDef } from '@/data/presets';
@@ -296,6 +298,10 @@ function PageContent() {
             loadError={loadError}
           />
         </div>
+        {/* Agent controls - bottom-left */}
+        <div className="mt-auto p-4">
+          <AgentHud />
+        </div>
       </div>
 
       {/* Reticle + loading overlays + mute button */}
@@ -315,7 +321,9 @@ export default function Page() {
   return (
     <PointerLockProvider>
       <AudioProvider>
-        <PageContent />
+        <AgentProvider>
+          <PageContent />
+        </AgentProvider>
       </AudioProvider>
     </PointerLockProvider>
   );

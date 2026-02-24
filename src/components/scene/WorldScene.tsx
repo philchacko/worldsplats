@@ -10,6 +10,8 @@ import type { SplatBounds } from '@/components/spark/SplatWorld';
 import PlayerController from '@/components/controls/PlayerController';
 import PointerLockBridge from '@/components/scene/PointerLockBridge';
 import TouchLookController from '@/components/controls/TouchLookController';
+import AgentController from '@/components/agent/AgentController';
+import AgentVisualizer from '@/components/agent/AgentVisualizer';
 import type { WorldDef, ObjectDef } from '@/data/presets';
 
 export type ShootHandle = {
@@ -105,6 +107,10 @@ function SceneInner({
         onLoadingChange={handleLoadingChange}
         onBoundsReady={onBoundsReady}
       />
+
+      {/* Autonomous exploration agent */}
+      <AgentController />
+      <AgentVisualizer />
 
       {/* Usual lighting for mesh-based objects */}
       <ambientLight intensity={0.5} />
