@@ -25,12 +25,24 @@ export function colliderUrlFromSplatUrl(splatUrl: string): string {
   return splatUrl.replace(/\.(spz|ply)$/, '.glb');
 }
 
+// ─── Music pool ─────────────────────────────────────────────
+// Worlds loaded from the DB may not have a music file.
+// In that case we pick from this pool (round-robin by index).
+export const MUSIC_POOL = [
+  'music/Sunlit_Grove_Ambient.mp3',
+  'music/Sunset_Focus.mp3',
+  'music/Neon_Night_Reverie.mp3',
+  'music/Tranquil_Fields.mp3',
+  'music/Cartoon_Cozy_Theme.mp3',
+  'music/Sunset_Boulevard_Serenade.mp3',
+];
+
 export type WorldDef = {
   id: string;
   name: string;
   url: string;             // .spz or .ply (Spark auto-detects)
   imageUrl: string;
-  musicUrl: string;
+  musicUrl?: string;        // optional — worlds from DB may not have music
   imageCredit?: string;
   colliderUrl?: string;    // per-world collider .glb — defaults to splat URL with .glb extension
   position?: [number, number, number];

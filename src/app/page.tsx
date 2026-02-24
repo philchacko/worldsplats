@@ -10,7 +10,8 @@ import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
-import { WORLDS, OBJECTS, colliderUrlFromSplatUrl, type WorldDef, type ObjectDef } from '@/data/presets';
+import { WORLDS, OBJECTS, ASSET_MODE, colliderUrlFromSplatUrl, type WorldDef, type ObjectDef } from '@/data/presets';
+import { useRemoteWorlds } from '@/lib/useRemoteWorlds';
 import { Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
@@ -18,6 +19,7 @@ import MobileHud from '@/components/controls/MobileHud';
 function OverlayUI({
   world,
   currentIndex,
+  totalWorlds,
   speed,
   setSpeed,
   onBack,
@@ -27,6 +29,7 @@ function OverlayUI({
 }: {
   world: WorldDef;
   currentIndex: number;
+  totalWorlds: number;
   speed: number;
   setSpeed: (speed: number) => void;
   onBack: () => void;
@@ -66,7 +69,7 @@ function OverlayUI({
       <div className="p-4 flex-shrink-0">
         <NavHeader
           title={world.name}
-          detail={`${currentIndex + 1} of ${WORLDS.length}`}
+          detail={`${currentIndex + 1} of ${totalWorlds}`}
           onBack={onBack}
           onForward={onForward}
         />
@@ -187,6 +190,18 @@ const Divider = () => {
 };
 
 function PageContent() {
+  // Fetch worlds from Supabase (returns [] if not configured)
+  const { worlds: remoteWorlds, loading: remoteLoading } = useRemoteWorlds();
+
+  // Merge: in supabase mode, prefer remote worlds; in local mode, use static.
+  // Remote worlds that share an id with static ones replace them; others are appended.
+  const allWorlds = React.useMemo<WorldDef[]>(() => {
+    if (ASSET_MODE === 'local' || remoteWorlds.length === 0) return WORLDS;
+    const remoteIds = new Set(remoteWorlds.map((w) => w.id));
+    const staticOnly = WORLDS.filter((w) => !remoteIds.has(w.id));
+    return [...remoteWorlds, ...staticOnly];
+  }, [remoteWorlds]);
+
   const [world, setWorld] = useState<WorldDef>(WORLDS[0]);
   const [object, setObject] = useState<ObjectDef>(OBJECTS[0]);
   const [speed, setSpeed] = useState<number>(14);
@@ -196,28 +211,37 @@ function PageContent() {
   const mobileInputRef = useRef<{x:number;y:number}>({x:0,y:0});
   const { setMusic } = useAudio();
 
-  // Return current index of world in WORLDS
-  const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
+  // When remote worlds finish loading, reset to the first world from the merged list
+  React.useEffect(() => {
+    if (!remoteLoading && allWorlds.length > 0) {
+      setWorld(allWorlds[0]);
+    }
+  }, [remoteLoading, allWorlds]);
+
+  // Return current index of world in the merged list
+  const currentIndex = allWorlds.findIndex((w) => w.id === world.id);
 
   // Switch music when world changes. This is safe before/after init().
   React.useEffect(() => {
-    setMusic(world.musicUrl);        // no-op until user clicks play, then it starts
+    if (world.musicUrl) {
+      setMusic(world.musicUrl);
+    }
   }, [world.musicUrl, setMusic]);
 
   const handleBack = () => {
     if (currentIndex > 0) {
-      setWorld(WORLDS[currentIndex - 1]);
+      setWorld(allWorlds[currentIndex - 1]);
     } else {
-      setWorld(WORLDS[WORLDS.length - 1]);
+      setWorld(allWorlds[allWorlds.length - 1]);
     }
   };
 
   const handleForward = () => {
-    const currentIndex = WORLDS.findIndex((w) => w.id === world.id);
-    if (currentIndex < WORLDS.length - 1) {
-      setWorld(WORLDS[currentIndex + 1]);
+    const idx = allWorlds.findIndex((w) => w.id === world.id);
+    if (idx < allWorlds.length - 1) {
+      setWorld(allWorlds[idx + 1]);
     } else {
-      setWorld(WORLDS[0]);
+      setWorld(allWorlds[0]);
     }
   };
 
@@ -246,11 +270,12 @@ function PageContent() {
           <OverlayUI
             world={world}
             currentIndex={currentIndex}
+            totalWorlds={allWorlds.length}
             speed={speed}
             setSpeed={setSpeed}
             onBack={handleBack}
             onForward={handleForward}
-            isLoading={isLoading}
+            isLoading={isLoading || remoteLoading}
             loadError={loadError}
           />
         </div>

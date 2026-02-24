@@ -50,8 +50,11 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 - `src/physics/RapierProvider.tsx` - Physics engine context provider
 
 #### Configuration & Data
-- `src/data/presets.ts` - World and object definitions (WorldDef, ObjectDef)
+- `src/data/presets.ts` - World and object definitions (WorldDef, ObjectDef), asset mode, music pool
 - `src/config/audio.ts` - Audio configuration constants
+- `src/lib/supabase.ts` - Supabase client singleton (browser-safe, anon key)
+- `src/lib/useRemoteWorlds.ts` - Hook to fetch worlds from Supabase DB and map to WorldDef[]
+- `scripts/setup-worlds-table.mjs` - Setup script for Supabase worlds table and seed data
 
 ### Core Concepts
 
@@ -89,8 +92,9 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 ### Key Features
 
 - Real-time Gaussian Splat rendering via Spark.js
-- 6 unique world environments with individual music tracks
-- World-specific background music with automatic switching
+- Dynamic world loading from Supabase DB (arbitrary number of worlds)
+- Static world fallback for local/offline development
+- World-specific background music with automatic switching (random from pool for DB worlds)
 - Full mobile support with touch controls and virtual joystick
 - Physics simulation with Rapier
 - Configurable projectile speed
@@ -102,13 +106,29 @@ This is a Next.js 15 app using React 19 that implements a 3D world exploration e
 
 #### Adding New Worlds
 
+**Via Supabase (recommended for production — no code changes needed):**
+
 1. Upload assets to Supabase Storage (public bucket):
    - `.spz` splat file → `worlds/myworld.spz`
    - `.glb` collider mesh → `worlds/myworld.glb` (same base name as splat)
    - `.jpg` thumbnail → `worlds/myworld.jpg`
-   - `.mp3` music → `music/myworld.mp3`
+   - `.mp3` music → `music/myworld.mp3` (optional — random track assigned from pool if omitted)
 
-2. Add entry to `src/data/presets.ts`:
+2. Insert a row in the `worlds` table via Supabase Dashboard:
+   - `id`: unique slug (e.g. `'my-world'`)
+   - `name`: display name
+   - `splat_file`: `'worlds/myworld.spz'` (relative to storage base)
+   - `image_file`: `'worlds/myworld.jpg'`
+   - `music_file`: `'music/myworld.mp3'` or `null`
+   - `collider_file`: `'worlds/myworld.glb'` or `null` (derived from splat_file if null)
+   - `guide`: description text
+   - `sort_order`: integer controlling display order
+
+The app fetches worlds from the DB at startup — no redeployment needed.
+
+**Via static config (for local dev):**
+
+Add entry to `src/data/presets.ts`:
 
 ```typescript
 {
@@ -135,8 +155,21 @@ The `assetUrl(localPath, remotePath)` helper resolves to a local `/public` path 
 |---------|--------|---------|---------|
 | `NEXT_PUBLIC_ASSET_MODE` | `local` / `supabase` | `local` | Where to load assets from |
 | `NEXT_PUBLIC_SUPABASE_STORAGE_BASE` | URL | — | Supabase Storage base URL (required for `supabase` mode) |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL | — | Supabase project URL (for DB world fetching) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | string | — | Supabase anon/public key (for DB world fetching) |
+| `SUPABASE_SERVICE_ROLE_KEY` | string | — | Service role key (for `db:seed` script only, never exposed to client) |
 
 For local development, keep the default `local` mode and place assets in `/public/worlds/` and `/public/music/`. For production with Supabase, set both env vars in `.env.local` or your hosting provider.
+
+#### Database Setup
+
+```bash
+# Print the CREATE TABLE SQL to paste into Supabase SQL Editor:
+npm run db:schema
+
+# Seed the table with the 6 existing worlds (requires SUPABASE_SERVICE_ROLE_KEY):
+SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_ROLE_KEY=ey... npm run db:seed
+```
 
 #### Performance Settings
 
