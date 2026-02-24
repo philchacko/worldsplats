@@ -34,11 +34,14 @@ create table if not exists public.worlds (
   position_x real not null default 0,
   position_y real not null default 0,
   position_z real not null default 0,
-  quaternion_x real not null default 1,
+  quaternion_x real not null default 0,
   quaternion_y real not null default 0,
   quaternion_z real not null default 0,
-  quaternion_w real not null default 0,
+  quaternion_w real not null default 1,
   scale real not null default 1,
+  spawn_x real,                     -- player spawn position (nullable = use default)
+  spawn_y real,
+  spawn_z real,
   sort_order int not null default 0,
   created_at timestamptz not null default now()
 );

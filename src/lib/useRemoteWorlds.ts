@@ -26,6 +26,9 @@ type WorldRow = {
   quaternion_z: number;
   quaternion_w: number;
   scale: number;
+  spawn_x: number | null;
+  spawn_y: number | null;
+  spawn_z: number | null;
   sort_order: number;
 };
 
@@ -47,7 +50,7 @@ function rowToWorldDef(row: WorldRow, index: number): WorldDef {
     id: row.id,
     name: row.name,
     url: splatUrl,
-    imageUrl: storageUrl(row.image_file),
+    imageUrl: row.image_file ? storageUrl(row.image_file) : '',
     musicUrl: pickMusic(row.music_file, index),
     colliderUrl: row.collider_file
       ? storageUrl(row.collider_file)
@@ -57,6 +60,7 @@ function rowToWorldDef(row: WorldRow, index: number): WorldDef {
     position: [row.position_x, row.position_y, row.position_z],
     quaternion: [row.quaternion_x, row.quaternion_y, row.quaternion_z, row.quaternion_w],
     scale: row.scale,
+    spawn: row.spawn_x != null ? [row.spawn_x, row.spawn_y ?? 0, row.spawn_z ?? 0] : undefined,
   };
 }
 

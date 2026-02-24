@@ -97,14 +97,14 @@ function OverlayUI({
         </p>
 
         <Divider />
-        <div className="space-y-1">
+        {world.imageUrl && <div className="space-y-1">
           <p className="text-xs text-secondary">Prompt image</p>
           <img src={world.imageUrl} alt="Prompt image" className="w-fit h-40 rounded-lg pt-2" />
-        </div>
-        <div className="space-y-1">
+        </div>}
+        {world.guide && <div className="space-y-1">
           <p className="text-xs text-secondary">World guide</p>
           <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.guide}</p>
-        </div>
+        </div>}
         {world.imageCredit && <div className="space-y-1">
           <p className="text-xs text-secondary">Image credit</p>
           <p className="text-xs text-zinc-200 max-h-40 overflow-y-auto">{world.imageCredit}</p>
@@ -253,7 +253,7 @@ function PageContent() {
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D Canvas - fills entire viewport */}
-      <RapierProvider colliderUrl={world.colliderUrl ?? colliderUrlFromSplatUrl(world.url)}>
+      <RapierProvider colliderUrl={world.colliderUrl ?? colliderUrlFromSplatUrl(world.url)} colliderRotation={world.quaternion} spawnPosition={world.spawn}>
         <WorldScene
           world={world}
           object={object}

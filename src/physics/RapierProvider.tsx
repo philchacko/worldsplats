@@ -19,10 +19,14 @@ const MAX_STEPS = 5;
 export function RapierProvider({
   gravity = UNIVERSE_CONFIG.GRAVITY,
   colliderUrl,
+  colliderRotation,
+  spawnPosition,
   children,
 }: {
   gravity?: { x: number; y: number; z: number };
   colliderUrl?: string;
+  colliderRotation?: [number, number, number, number]; // x,y,z,w — match the visual mesh rotation
+  spawnPosition?: [number, number, number];
   children: React.ReactNode;
 }) {
   const [rapierReady, setRapierReady] = useState(false);
@@ -96,6 +100,13 @@ export function RapierProvider({
         const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
         envBodyRef.current = body;
         const created: RAPIER.Collider[] = [];
+        // Apply the same rotation as the visual splat mesh so physics match visuals
+        if (colliderRotation) {
+          gltf.scene.quaternion.set(
+            colliderRotation[0], colliderRotation[1],
+            colliderRotation[2], colliderRotation[3],
+          );
+        }
         gltf.scene.updateMatrixWorld(true);
         gltf.scene.traverse((child: THREE.Object3D) => {
           // @ts-expect-error narrow at runtime
@@ -141,18 +152,18 @@ export function RapierProvider({
         envBodyRef.current = null;
       }
     };
-  }, [rapierReady, colliderUrl]);
+  }, [rapierReady, colliderUrl, colliderRotation]);
 
   // Reset player position when world changes (colliderUrl changes)
   useEffect(() => {
     if (!playerBodyRef.current || !colliderUrl) return;
-    const { START } = UNIVERSE_CONFIG.PLAYER;
+    const spawn = spawnPosition ?? UNIVERSE_CONFIG.PLAYER.START;
     playerBodyRef.current.setTranslation(
-      { x: START[0], y: START[1], z: START[2] },
+      { x: spawn[0], y: spawn[1], z: spawn[2] },
       true,
     );
     playerBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-  }, [colliderUrl]);
+  }, [colliderUrl, spawnPosition]);
 
   // Create player rigid body and capsule collider
   useEffect(() => {

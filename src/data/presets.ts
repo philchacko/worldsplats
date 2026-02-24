@@ -48,6 +48,7 @@ export type WorldDef = {
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
+  spawn?: [number, number, number]; // player spawn position — defaults to UNIVERSE_CONFIG.PLAYER.START
   guide: string;
 };
 
