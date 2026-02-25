@@ -29,14 +29,13 @@ import { NavHeader } from "@/components/hud/NavHeader";
 import { Spinner, VolumeMaxLine, VolumeXLine, HomeLine } from "@/icons";
 
 import WorldScene from "@/components/scene/WorldScene";
-import type { SplatBounds } from '@/components/spark/SplatWorld';
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
 import { AgentProvider } from '@/providers/agent';
 import AgentHud from '@/components/agent/AgentHud';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
-import { WORLDS, OBJECTS, ASSET_MODE, colliderUrlFromSplatUrl, type WorldDef, type ObjectDef } from '@/data/presets';
+import { WORLDS, OBJECTS, ASSET_MODE, type WorldDef, type ObjectDef } from '@/data/presets';
 import { useRemoteWorlds } from '@/lib/useRemoteWorlds';
 import { Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton, Button } from '@/components/hud/Button';
@@ -233,7 +232,6 @@ function PageContent() {
   const [speed, setSpeed] = useState<number>(14);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | undefined>();
-  const [autoSpawn, setAutoSpawn] = useState<[number, number, number] | undefined>();
   const shootRef = useRef<ShootHandle | null>(null);
   const mobileInputRef = useRef<{x:number;y:number}>({x:0,y:0});
   const { setMusic } = useAudio();
@@ -247,11 +245,6 @@ function PageContent() {
 
   // Return current index of world in the merged list
   const currentIndex = allWorlds.findIndex((w) => w.id === world.id);
-
-  // Clear auto-spawn when world changes so it doesn't carry over
-  React.useEffect(() => {
-    setAutoSpawn(undefined);
-  }, [world.id]);
 
   // Switch music when world changes. This is safe before/after init().
   React.useEffect(() => {
@@ -282,26 +275,16 @@ function PageContent() {
     setLoadError(error);
   };
 
-  // When splat bounds are computed, auto-position the player at the center
-  // (only if the world doesn't have an explicit spawn position)
-  const handleBoundsReady = React.useCallback((bounds: SplatBounds) => {
-    if (!world.spawn) {
-      // Use the bounding box center as spawn — the Y center should be roughly eye level
-      setAutoSpawn([bounds.center[0], bounds.center[1], bounds.center[2]]);
-    }
-  }, [world.spawn]);
-
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D Canvas - fills entire viewport */}
-      <RapierProvider colliderUrl={world.colliderUrl ?? colliderUrlFromSplatUrl(world.url)} colliderRotation={world.quaternion} spawnPosition={world.spawn ?? autoSpawn}>
+      <RapierProvider colliderUrl={world.colliderUrl} colliderRotation={world.colliderUrl ? world.quaternion : undefined} spawnPosition={world.spawn}>
         <WorldScene
           world={world}
           object={object}
           shootSink={shootRef}
           playerMoveSpeed={speed}
           onLoadingChange={handleLoadingChange}
-          onBoundsReady={handleBoundsReady}
           mobileInputRef={mobileInputRef}
         />
       </RapierProvider>

@@ -84,27 +84,33 @@ export function RapierProvider({
     return () => { mounted = false; };
   }, [rapierReady]);
 
+  // Resolve the actual collider URL: use per-world collider if provided,
+  // otherwise fall back to the generic floor mesh.
+  const resolvedColliderUrl = colliderUrl ?? UNIVERSE_CONFIG.ENVIRONMENT.MESH;
+  // Only apply rotation when using a per-world collider (the generic floor is axis-aligned)
+  const resolvedRotation = colliderUrl ? colliderRotation : undefined;
+
   // Load environment collision mesh and build fixed trimesh colliders.
-  // Re-runs when colliderUrl changes (world switch).
+  // Re-runs when the resolved collider changes (world switch).
   useEffect(() => {
-    if (!rapierReady || !colliderUrl) return;
+    if (!rapierReady) return;
     const world = worldRef.current;
     const rapier = rapierRef.current;
     if (!world || !rapier) return;
     let disposed = false;
     const loader = new GLTFLoader();
     loader.load(
-      colliderUrl,
+      resolvedColliderUrl,
       (gltf) => {
         if (disposed) return;
         const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
         envBodyRef.current = body;
         const created: RAPIER.Collider[] = [];
         // Apply the same rotation as the visual splat mesh so physics match visuals
-        if (colliderRotation) {
+        if (resolvedRotation) {
           gltf.scene.quaternion.set(
-            colliderRotation[0], colliderRotation[1],
-            colliderRotation[2], colliderRotation[3],
+            resolvedRotation[0], resolvedRotation[1],
+            resolvedRotation[2], resolvedRotation[3],
           );
         }
         gltf.scene.updateMatrixWorld(true);
@@ -133,12 +139,12 @@ export function RapierProvider({
           created.push(col);
         });
         envCollidersRef.current = created;
-        console.log(`✓ Environment collision mesh loaded: ${colliderUrl}`);
+        console.log(`✓ Environment collision mesh loaded: ${resolvedColliderUrl}`);
       },
       undefined,
       (error) => {
         if (disposed) return;
-        console.warn(`Failed to load collider mesh: ${colliderUrl}`, error);
+        console.warn(`Failed to load collider mesh: ${resolvedColliderUrl}`, error);
       },
     );
     return () => {
@@ -152,18 +158,18 @@ export function RapierProvider({
         envBodyRef.current = null;
       }
     };
-  }, [rapierReady, colliderUrl, colliderRotation]);
+  }, [rapierReady, resolvedColliderUrl, resolvedRotation]);
 
-  // Reset player position when world changes (colliderUrl changes)
+  // Reset player position when world changes
   useEffect(() => {
-    if (!playerBodyRef.current || !colliderUrl) return;
+    if (!playerBodyRef.current) return;
     const spawn = spawnPosition ?? UNIVERSE_CONFIG.PLAYER.START;
     playerBodyRef.current.setTranslation(
       { x: spawn[0], y: spawn[1], z: spawn[2] },
       true,
     );
     playerBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-  }, [colliderUrl, spawnPosition]);
+  }, [resolvedColliderUrl, spawnPosition]);
 
   // Create player rigid body and capsule collider
   useEffect(() => {

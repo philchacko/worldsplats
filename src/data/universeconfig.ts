@@ -17,6 +17,10 @@ export const CONFIG = {
 	PROJECTILE_RESTITUTION: 0.9,
 	ENVIRONMENT_RESTITUTION: 0.0,
 	BONE_COLLIDER_RADIUS: 0.3,
+  // Environment
+  ENVIRONMENT: {
+    MESH: '/colliders/floor.glb',
+  },
   // Player
   PLAYER: {
     RADIUS: 0.33,
