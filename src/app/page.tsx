@@ -1,6 +1,29 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+/**
+ * Suppress the React DevTools + R3F reconciler crash.
+ * DevTools tries to parse R3F's empty version string as semver and throws
+ * an uncaught error that triggers Next.js's dev error overlay (black screen).
+ * This is a known compatibility issue — not caused by our code.
+ */
+function DevToolsErrorSuppressor() {
+  useEffect(() => {
+    const handler = (event: ErrorEvent) => {
+      if (
+        event.error?.message?.includes('not valid semver') &&
+        event.filename?.includes('react_devtools')
+      ) {
+        event.preventDefault();
+        console.warn('[Suppressed] React DevTools / R3F version compatibility error');
+      }
+    };
+    window.addEventListener('error', handler);
+    return () => window.removeEventListener('error', handler);
+  }, []);
+  return null;
+}
 import { RapierProvider } from '@/physics';
 import { NavHeader } from "@/components/hud/NavHeader";
 import { Spinner, VolumeMaxLine, VolumeXLine, HomeLine } from "@/icons";
@@ -319,13 +342,16 @@ function PageContent() {
 
 export default function Page() {
   return (
-    <PointerLockProvider>
-      <AudioProvider>
-        <AgentProvider>
-          <PageContent />
-        </AgentProvider>
-      </AudioProvider>
-    </PointerLockProvider>
+    <>
+      <DevToolsErrorSuppressor />
+      <PointerLockProvider>
+        <AudioProvider>
+          <AgentProvider>
+            <PageContent />
+          </AgentProvider>
+        </AudioProvider>
+      </PointerLockProvider>
+    </>
   );
 }
 
