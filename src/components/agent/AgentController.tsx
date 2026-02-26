@@ -40,20 +40,14 @@ export default function AgentController() {
       spawnZ = p.z;
     }
 
-    // Create dynamic capsule body (same shape as player)
+    // Create kinematic body — "ghost" mode: the agent passes through all
+    // geometry so pathfinding can be tested independently of physics collisions.
+    // Raycasts still detect the environment colliders for mapping.
     const bodyDesc = rapier
-      .RigidBodyDesc.dynamic()
-      .setTranslation(spawnX, spawnY, spawnZ)
-      .lockRotations()
-      .setLinearDamping(4.0)
-      .setCcdEnabled(true);
+      .RigidBodyDesc.kinematicVelocityBased()
+      .setTranslation(spawnX, spawnY, spawnZ);
     const body = world.createRigidBody(bodyDesc);
-
-    const colDesc = rapier
-      .ColliderDesc.capsule(0.55, 0.33)
-      .setFriction(0.9)
-      .setRestitution(0.0);
-    world.createCollider(colDesc, body);
+    // No collider — ghost agent doesn't need one.
     bodyRef.current = body;
 
     // Initialize state machine
@@ -81,10 +75,9 @@ export default function AgentController() {
       bodyRef.current, // exclude agent's own body from LiDAR raycasts
     );
 
-    // Apply horizontal velocity, keep vertical from physics (gravity)
-    const cur = bodyRef.current.linvel();
+    // Apply horizontal velocity only — kinematic ghost floats at constant height
     bodyRef.current.setLinvel(
-      { x: result.velocityX, y: cur.y, z: result.velocityZ },
+      { x: result.velocityX, y: 0, z: result.velocityZ },
       true,
     );
 

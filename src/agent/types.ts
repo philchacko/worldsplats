@@ -19,8 +19,7 @@ export type AgentConfig = {
   gridHeight: number;         // cells in Z (default 200 = 100m)
   lidarRayCount: number;      // rays per scan (default 72 = 5-degree increments)
   lidarMaxRange: number;      // max ray distance in meters (default 15)
-  lidarYOffset: number;       // sensor height above rigid body center (default 0.8)
-  lidarTiltDeg: number;       // downward tilt of LiDAR rays in degrees (default 10)
+  lidarYOffset: number;       // sensor height relative to body center (default 0)
   moveSpeed: number;          // agent walk speed m/s (default 3.0)
   scanInterval: number;       // seconds between scans while moving (default 0.25)
   noiseStdDev: number;        // LiDAR distance noise std dev in meters (default 0.02)
@@ -28,13 +27,12 @@ export type AgentConfig = {
 };
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
-  cellSize: 0.5,
+  cellSize: 0.1,
   gridWidth: 200,
   gridHeight: 200,
   lidarRayCount: 72,
   lidarMaxRange: 15,
-  lidarYOffset: 0.8,
-  lidarTiltDeg: 10,
+  lidarYOffset: 0,
   moveSpeed: 3.0,
   scanInterval: 0.25,
   noiseStdDev: 0.02,

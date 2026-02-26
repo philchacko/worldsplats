@@ -74,6 +74,17 @@ export type ObjectDef =
 
 export const WORLDS: WorldDef[] = [
   {
+    id: 'miami-living-room',
+    name: 'Miami Living Room',
+    url: assetUrl('/worlds/Vibrant Miami living room.spz', 'worlds/Vibrant Miami living room.spz'),
+    imageUrl: '',
+    colliderUrl: assetUrl('/worlds/Vibrant Miami living room_collider.glb', 'worlds/Vibrant Miami living room_collider.glb'),
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+    guide: 'A vibrant Miami-style living room interior.',
+  },
+  {
     id: 'forest-retreat',
     name: 'Forest Retreat',
     url: assetUrl('/worlds/foresthouse.spz', 'worlds/foresthouse.spz'),
