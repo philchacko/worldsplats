@@ -78,6 +78,7 @@ export default function AgentController() {
     const result = smRef.current.tick(
       delta, rapier, world,
       pos.x, pos.y, pos.z,
+      bodyRef.current, // exclude agent's own body from LiDAR raycasts
     );
 
     // Apply horizontal velocity, keep vertical from physics (gravity)

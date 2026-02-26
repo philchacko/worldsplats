@@ -61,16 +61,17 @@ export class AgentStateMachine {
     rapier: typeof RAPIER,
     world: RAPIER.World,
     posX: number, posY: number, posZ: number,
+    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     switch (this.state) {
       case AgentState.IDLE:
         return this.tickIdle();
       case AgentState.SCANNING:
-        return this.tickScanning(rapier, world, posX, posY, posZ);
+        return this.tickScanning(rapier, world, posX, posY, posZ, excludeBody);
       case AgentState.PLANNING:
         return this.tickPlanning(posX, posZ);
       case AgentState.MOVING:
-        return this.tickMoving(dt, rapier, world, posX, posY, posZ);
+        return this.tickMoving(dt, rapier, world, posX, posY, posZ, excludeBody);
       default:
         return this.result(0, 0);
     }
@@ -111,9 +112,10 @@ export class AgentStateMachine {
   private tickScanning(
     rapier: typeof RAPIER, world: RAPIER.World,
     posX: number, posY: number, posZ: number,
+    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     // Cast LiDAR rays and update grid
-    const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
+    const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
     this.lastLidarHits = hits;
 
     for (const hit of hits) {
@@ -138,14 +140,29 @@ export class AgentStateMachine {
       return this.result(0, 0);
     }
 
-    // Try each cluster (largest first) until we find a reachable one
+    // Try each cluster (largest first) until we find a reachable one.
+    // Target the cluster cell farthest from the agent — this ensures we move
+    // outward even when frontiers form a ring (whose centroid is the agent position).
     const agentGrid = this.grid.worldToGrid(posX, posZ);
 
     for (const cluster of clusters) {
+      // Pick the cell in the cluster farthest from the agent
+      let bestCell = cluster.cells[0];
+      let bestDist = 0;
+      for (const cell of cluster.cells) {
+        const dx = cell.gx - agentGrid.gx;
+        const dz = cell.gz - agentGrid.gz;
+        const d = dx * dx + dz * dz;
+        if (d > bestDist) {
+          bestDist = d;
+          bestCell = cell;
+        }
+      }
+
       const pathResult = AStarPathfinder.findPath(
         this.grid,
         agentGrid,
-        cluster.centroid,
+        bestCell,
       );
 
       if (pathResult && pathResult.worldPath.length > 1) {
@@ -155,8 +172,8 @@ export class AgentStateMachine {
         this.stuckTimer = 0;
         this.lastPos = [posX, posZ];
 
-        const centroidWorld = this.grid.gridToWorld(cluster.centroid.gx, cluster.centroid.gz);
-        this.targetFrontier = [centroidWorld.wx, centroidWorld.wz];
+        const targetWorld = this.grid.gridToWorld(bestCell.gx, bestCell.gz);
+        this.targetFrontier = [targetWorld.wx, targetWorld.wz];
 
         this.state = AgentState.MOVING;
         return this.result(0, 0);
@@ -182,12 +199,13 @@ export class AgentStateMachine {
     dt: number,
     rapier: typeof RAPIER, world: RAPIER.World,
     posX: number, posY: number, posZ: number,
+    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     // Periodic re-scan while moving
     this.scanTimer += dt;
     if (this.scanTimer >= this.config.scanInterval) {
       this.scanTimer = 0;
-      const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
+      const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
       this.lastLidarHits = hits;
       for (const hit of hits) {
         this.grid.markRay(posX, posZ, hit.worldX, hit.worldZ, hit.hit);
