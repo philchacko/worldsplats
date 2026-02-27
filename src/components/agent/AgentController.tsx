@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRapierWorld } from '@/physics';
 import { useAgent } from '@/providers/agent';
@@ -9,39 +9,31 @@ import { AgentState } from '@/agent/types';
 import { LidarScanner } from '@/agent/LidarScanner';
 import { OccupancyGrid } from '@/agent/OccupancyGrid';
 
-/** How often to re-evaluate where the player is looking (seconds). */
-const FOLLOW_UPDATE_SEC = 1.5;
-/** Max distance for the look-at raycast. */
-const FOLLOW_RAY_MAX = 30;
-/** Fallback distance if no surface is hit (project forward on XZ). */
-const FOLLOW_FALLBACK_DIST = 8;
-/** Don't update target if new look-at point is within this distance of current target. */
-const FOLLOW_HYSTERESIS = 1.5;
-
 /** Perpendicular sinusoidal drift while moving — gives a weaving, curious feel. */
 const DRIFT_AMPLITUDE = 0.6;
-/** Drift oscillation frequency (Hz). */
 const DRIFT_FREQUENCY = 0.45;
 /** A secondary, slower drift layered on top for asymmetry. */
 const DRIFT2_AMPLITUDE = 0.3;
 const DRIFT2_FREQUENCY = 0.17;
 
+/** Max distance (XZ) the agent is allowed to stray from the player. */
+const MAX_RANGE = 12;
+
 /** How often to auto-trigger a deep scan (seconds). */
 const DEEP_SCAN_INTERVAL = 20;
 
-const _dir = new THREE.Vector3();
-const _flat = new THREE.Vector3();
-
 /**
- * Drives the Curator companion. Automatically follows where the player
- * is looking by raycasting from the camera, with sinusoidal perpendicular
- * drift for a curious, organic feel. Scans with LiDAR to build the
- * occupancy grid as it explores.
+ * Drives the Curator companion. Moves toward a commanded target
+ * (set by the player pressing F) with sinusoidal perpendicular
+ * drift for a curious, organic feel. Scans with LiDAR to build
+ * the occupancy grid as it explores.
+ *
+ * A range leash keeps the agent within MAX_RANGE of the player —
+ * if it exceeds the limit, the command is cleared and it idles.
  */
 export default function AgentController() {
   const { world, rapier, playerBody } = useRapierWorld();
-  const { camera } = useThree();
-  const { enabled, config, vizDataRef, gridRef, triggerDeepScan } = useAgent();
+  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan } = useAgent();
 
   const posRef = useRef(new THREE.Vector3());
   const scannerRef = useRef<LidarScanner | null>(null);
@@ -50,10 +42,6 @@ export default function AgentController() {
   const deepScanInFlightRef = useRef(false);
   const stateRef = useRef<AgentState>(AgentState.IDLE);
   const initializedRef = useRef(false);
-
-  // Auto-follow state
-  const followTimerRef = useRef(0);
-  const followTargetRef = useRef<[number, number, number] | null>(null);
 
   // Drift clock — accumulates time while moving for the sine oscillation.
   const driftClockRef = useRef(0);
@@ -68,8 +56,6 @@ export default function AgentController() {
       stateRef.current = AgentState.IDLE;
       deepScanTimerRef.current = 0;
       deepScanInFlightRef.current = false;
-      followTimerRef.current = 0;
-      followTargetRef.current = null;
       driftClockRef.current = 0;
       return;
     }
@@ -110,51 +96,27 @@ export default function AgentController() {
     if (!scanner || !grid) return;
 
     const pos = posRef.current;
+    const target = commandTargetRef.current;
 
-    // ── Auto look-at targeting ──
-    followTimerRef.current += delta;
-    if (followTimerRef.current >= FOLLOW_UPDATE_SEC) {
-      followTimerRef.current = 0;
-
-      camera.getWorldDirection(_dir).normalize();
-      const origin = camera.position;
-
-      // Raycast from camera to find what the player is looking at
-      const ray = new rapier.Ray(
-        { x: origin.x, y: origin.y, z: origin.z },
-        { x: _dir.x, y: _dir.y, z: _dir.z },
-      );
-      const hit = world.castRayAndGetNormal(ray, FOLLOW_RAY_MAX, false);
-
-      let tx: number, tz: number;
-      if (hit && hit.toi < FOLLOW_RAY_MAX && hit.toi > 1) {
-        // Project the hit to XZ — agent walks on the floor
-        tx = origin.x + _dir.x * hit.toi;
-        tz = origin.z + _dir.z * hit.toi;
-      } else {
-        // No hit: project forward on XZ plane
-        _flat.set(_dir.x, 0, _dir.z).normalize();
-        tx = origin.x + _flat.x * FOLLOW_FALLBACK_DIST;
-        tz = origin.z + _flat.z * FOLLOW_FALLBACK_DIST;
-      }
-
-      // Hysteresis: only update if significantly different from current target
-      const cur = followTargetRef.current;
-      if (!cur || Math.hypot(tx - cur[0], tz - cur[2]) > FOLLOW_HYSTERESIS) {
-        followTargetRef.current = [tx, pos.y, tz];
+    // ── Range leash — cancel command if agent is too far from the player ──
+    if (playerBody && target) {
+      const pp = playerBody.translation();
+      const dx = pos.x - pp.x;
+      const dz = pos.z - pp.z;
+      if (Math.sqrt(dx * dx + dz * dz) > MAX_RANGE) {
+        clearCommand();
       }
     }
 
-    // ── Movement toward follow target ──
-    const target = followTargetRef.current;
-    if (target) {
-      const dx = target[0] - pos.x;
-      const dz = target[2] - pos.z;
+    // ── Movement toward command target ──
+    const cmd = commandTargetRef.current; // re-read after possible leash clear
+    if (cmd) {
+      const dx = cmd[0] - pos.x;
+      const dz = cmd[2] - pos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist < config.arrivalThreshold) {
-        // Arrived — idle until next target update
-        followTargetRef.current = null;
+        clearCommand();
         stateRef.current = AgentState.IDLE;
       } else {
         stateRef.current = AgentState.MOVING;

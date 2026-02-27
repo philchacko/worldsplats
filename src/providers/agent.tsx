@@ -34,10 +34,16 @@ type AgentAPI = {
   setEnabled: (v: boolean) => void;
   config: AgentConfig;
   vizDataRef: React.MutableRefObject<VizData | null>;
+  /** World-space target [x, y, z] the agent should move toward. Null = no command. */
+  commandTargetRef: React.MutableRefObject<[number, number, number] | null>;
   /** R3F renderer context, written from inside the Canvas. */
   r3fRef: React.MutableRefObject<R3FContext | null>;
   /** The occupancy grid, shared between AgentController and splash projector. */
   gridRef: React.MutableRefObject<OccupancyGrid | null>;
+  /** Send the agent to a world-space target. */
+  issueCommand: (target: [number, number, number]) => void;
+  /** Clear the current command (agent stops). */
+  clearCommand: () => void;
   /** Run SAM-3 segmentation + splash projection onto the occupancy grid. */
   triggerDeepScan: (concepts?: string[]) => Promise<SegmentationResult>;
   /** Stats from the most recent splash projection. */
@@ -53,6 +59,7 @@ const AgentCtx = createContext<AgentAPI | null>(null);
 export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabled] = useState(false);
   const vizDataRef = useRef<VizData | null>(null);
+  const commandTargetRef = useRef<[number, number, number] | null>(null);
   const r3fRef = useRef<R3FContext | null>(null);
   const gridRef = useRef<OccupancyGrid | null>(null);
   const lastSplashRef = useRef<SplashStats | null>(null);
@@ -63,10 +70,19 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setEnabled(v);
     if (!v) {
       vizDataRef.current = null;
+      commandTargetRef.current = null;
       gridRef.current = null;
       lastSplashRef.current = null;
       hoveredLabelRef.current = null;
     }
+  }, []);
+
+  const issueCommand = useCallback((target: [number, number, number]) => {
+    commandTargetRef.current = target;
+  }, []);
+
+  const clearCommand = useCallback(() => {
+    commandTargetRef.current = null;
   }, []);
 
   const triggerDeepScan = useCallback(async (concepts?: string[]) => {
@@ -97,13 +113,16 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setEnabled: stableSetEnabled,
     config: DEFAULT_AGENT_CONFIG,
     vizDataRef,
+    commandTargetRef,
     r3fRef,
     gridRef,
+    issueCommand,
+    clearCommand,
     triggerDeepScan,
     lastSplashRef,
     deepScanSignalRef,
     hoveredLabelRef,
-  }), [enabled, stableSetEnabled, triggerDeepScan]);
+  }), [enabled, stableSetEnabled, issueCommand, clearCommand, triggerDeepScan]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;
 }
