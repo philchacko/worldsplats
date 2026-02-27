@@ -1,11 +1,15 @@
 /**
  * Decode SAM-3 / COCO-style RLE masks to binary Uint8Array.
  *
- * fal.ai's SAM-3 `image-rle` endpoint returns masks in COCO binary RLE format:
- * a variable-length encoded string where each character encodes 6 bits (ASCII
- * offset 48). The decoded counts alternate between background (0) and foreground
- * (1), starting with background. The mask is column-major (Fortran order):
+ * fal.ai's SAM-3 `image-rle` endpoint returns masks in COCO binary RLE format.
+ * This is a variable-length encoded string using LEB128-style 6-bit characters
+ * (ASCII offset 48) with **delta encoding** and **sign extension**.
+ *
+ * The decoded counts alternate between background (0) and foreground (1),
+ * starting with background. The mask is column-major (Fortran order):
  * pixel (x, y) → index y + x * height.
+ *
+ * Reference: cocodataset/cocoapi maskApi.c — rleFrString / rleToString
  *
  * This module decodes that format and returns a **row-major** Uint8Array
  * (pixel (x, y) → index y * width + x) for convenient iteration.
@@ -14,9 +18,13 @@
 /**
  * Decode COCO binary RLE string into run-length counts.
  *
- * Each character in the string contributes 5 data bits + 1 continuation bit.
- * Characters are ASCII value - 48. When the continuation bit (bit 5) is set,
- * the next character continues the current count value.
+ * Matches the exact algorithm from pycocotools/cocoapi maskApi.c:
+ *  1. Each character contributes 5 data bits + 1 continuation bit (ASCII - 48)
+ *  2. When the final chunk has bit 4 set, the value is negative → sign-extend
+ *  3. After the first 2 counts, each value is a DELTA from 2 positions back
+ *
+ * Without steps 2 and 3, decoded counts are completely wrong — producing
+ * tiny or misplaced masks (e.g. floor=66 pixels instead of ~500k).
  */
 function decodeCountsFromRLE(encoded: string): number[] {
   const counts: number[] = [];
@@ -24,15 +32,28 @@ function decodeCountsFromRLE(encoded: string): number[] {
 
   while (p < encoded.length) {
     let x = 0;
-    let shift = 0;
+    let k = 0;
     let more = true;
 
     while (more && p < encoded.length) {
       const c = encoded.charCodeAt(p) - 48;
-      x |= (c & 0x1f) << (5 * shift);
+      x |= (c & 0x1f) << (5 * k);
       more = (c & 0x20) !== 0;
       p++;
-      shift++;
+      k++;
+
+      // Sign extension: if this is the last chunk and bit 4 is set,
+      // the value is negative. Extend the sign bit through all higher bits.
+      if (!more && (c & 0x10)) {
+        x |= (-1 << (5 * k));
+      }
+    }
+
+    // Delta decoding: counts[m] was stored as (counts[m] - counts[m-2])
+    // for m >= 2. Undo by adding back counts[m-2].
+    const m = counts.length;
+    if (m >= 2) {
+      x += counts[m - 2];
     }
 
     counts.push(x);
@@ -58,7 +79,7 @@ function tryParseSimpleCounts(encoded: string): number[] | null {
  *
  * Auto-detects format:
  * 1. Simple comma/space-separated integer counts
- * 2. COCO binary RLE (variable-length ASCII encoding)
+ * 2. COCO binary RLE (variable-length ASCII encoding with delta + sign extension)
  *
  * @param rle    The RLE string from the API response
  * @param width  Image width in pixels
@@ -81,6 +102,12 @@ export function decodeRLE(rle: string, width: number, height: number): Uint8Arra
     return mask;
   }
 
+  // Sanity check: total of all counts should equal width * height
+  const countSum = counts.reduce((a, b) => a + b, 0);
+  if (Math.abs(countSum - total) > 1) {
+    console.warn(`[rleDecoder] count sum ${countSum} ≠ total pixels ${total} (diff=${countSum - total})`);
+  }
+
   // COCO RLE is column-major. Build a column-major buffer first,
   // then transpose to row-major for easier iteration.
   const colMajor = new Uint8Array(total);
@@ -88,6 +115,11 @@ export function decodeRLE(rle: string, width: number, height: number): Uint8Arra
   let value = 0; // Start with background (0)
 
   for (const count of counts) {
+    if (count < 0) {
+      console.warn(`[rleDecoder] negative count ${count} at index ${idx}, skipping`);
+      value = 1 - value;
+      continue;
+    }
     for (let i = 0; i < count && idx < total; i++) {
       colMajor[idx++] = value;
     }
