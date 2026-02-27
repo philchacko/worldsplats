@@ -22,7 +22,8 @@ export default function AgentHud() {
     setScanResult(null);
     try {
       const result = await triggerDeepScan();
-      setScanResult(`${result.masks.length} masks found`);
+      const labels = result.masks.map((m) => m.label).join(', ');
+      setScanResult(`${result.masks.length} masks: ${labels}`);
     } catch (err) {
       console.error('[DeepScan]', err);
       setScanResult(`Error: ${err}`);

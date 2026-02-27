@@ -2,14 +2,26 @@ import * as THREE from 'three';
 import { captureSnapshot } from './captureSnapshot';
 import type { SegmentationMask, SegmentationResult } from './types';
 
-/** Default concept groups for a structural deep scan. */
+/**
+ * Default concepts for an initial room scan.
+ * Use specific object names — SAM-3 works better with concrete nouns
+ * than abstract categories (e.g. "sofa" not "furniture").
+ */
 export const DEFAULT_CONCEPTS = [
+  // Structural
   'floor',
   'wall',
   'ceiling',
-  'doorway',
-  'furniture',
+  'door',
   'window',
+  // Furnishings (common interior objects)
+  'sofa',
+  'table',
+  'chair',
+  'rug',
+  'lamp',
+  'bookshelf',
+  'painting',
 ];
 
 /**
