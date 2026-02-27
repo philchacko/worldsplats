@@ -50,6 +50,8 @@ type AgentAPI = {
   triggerDeepScan: (concepts?: string[]) => Promise<SegmentationResult>;
   /** Stats from the most recent splash projection. */
   lastSplashRef: React.MutableRefObject<SplashStats | null>;
+  /** Increments each time a deep scan starts — audio/FX can watch for changes. */
+  deepScanSignalRef: React.MutableRefObject<number>;
 };
 
 const AgentCtx = createContext<AgentAPI | null>(null);
@@ -62,6 +64,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const r3fRef = useRef<R3FContext | null>(null);
   const gridRef = useRef<OccupancyGrid | null>(null);
   const lastSplashRef = useRef<SplashStats | null>(null);
+  const deepScanSignalRef = useRef(0);
   // Ref mirror of enabled to avoid stale closures in issueCommand
   const enabledRef = useRef(false);
   enabledRef.current = enabled;
@@ -90,6 +93,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const triggerDeepScan = useCallback(async (concepts?: string[]) => {
     const ctx = r3fRef.current;
     if (!ctx) throw new Error('R3F context not available — is the Canvas mounted?');
+    deepScanSignalRef.current++;
     const result = await segmentScene(ctx.gl, ctx.scene, ctx.camera, concepts ?? DEFAULT_CONCEPTS);
     console.log(
       `[DeepScan] ${result.masks.length} masks:`,
@@ -123,6 +127,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     clearCommand,
     triggerDeepScan,
     lastSplashRef,
+    deepScanSignalRef,
   }), [enabled, stableSetEnabled, showViz, issueCommand, clearCommand, triggerDeepScan]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;

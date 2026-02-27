@@ -19,6 +19,11 @@ type AudioAPI = {
 
   isLoading: boolean;
   currentUrl: string | null;
+
+  /** Raw AudioContext for SFX systems (null before init). */
+  context: AudioContext | null;
+  /** Master gain node (null before init). */
+  masterGain: GainNode | null;
 };
 
 const AudioCtx = createContext<AudioAPI | null>(null);
@@ -194,6 +199,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  const context = ctxRef.current;
+  const masterGain = masterGainRef.current;
+
   const api = useMemo<AudioAPI>(() => ({
     ready,
     init,
@@ -203,7 +211,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     stop,
     isLoading,
     currentUrl,
-  }), [ready, init, muted, setMuted, setMusic, stop, isLoading, currentUrl]);
+    context,
+    masterGain,
+  }), [ready, init, muted, setMuted, setMusic, stop, isLoading, currentUrl, context, masterGain]);
 
   return <AudioCtx.Provider value={api}>{children}</AudioCtx.Provider>;
 }

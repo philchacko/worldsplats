@@ -31,7 +31,7 @@ import { Spinner, VolumeMaxLine, VolumeXLine, HomeLine } from "@/icons";
 import WorldScene from "@/components/scene/WorldScene";
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
-import { AgentProvider } from '@/providers/agent';
+import { AgentProvider, useAgent } from '@/providers/agent';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, ASSET_MODE, type WorldDef, type ObjectDef } from '@/data/presets';
@@ -40,6 +40,7 @@ import { Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
 import AgentHud from '@/components/agent/AgentHud';
+import CuratorAudio from '@/components/agent/CuratorAudio';
 
 function OverlayUI({
   world,
@@ -64,6 +65,7 @@ function OverlayUI({
 }) {
   const { isLocked, lock } = usePointerLock();
   const { init } = useAudio();
+  const { setEnabled: setAgentEnabled } = useAgent();
 
   const handleClickToPlay = React.useCallback(async () => {
     try {
@@ -85,8 +87,11 @@ function OverlayUI({
       console.log('Motion permission not available or denied:', e);
     }
 
+    // Start the Curator — deep scan auto-fires from AgentController's timer
+    setAgentEnabled(true);
+
     lock({ unadjustedMovement: false });
-  }, [init, lock]);
+  }, [init, lock, setAgentEnabled]);
 
   return (
     <div className="pointer-events-auto flex w-full sm:w-[480px] max-h-[80vh] flex-col rounded-lg border border-normal bg-zinc-900/70 bg-root backdrop-blur overflow-hidden">
@@ -313,6 +318,9 @@ function PageContent() {
       <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
         <AgentHud />
       </div>
+
+      {/* Curator ambient sounds */}
+      <CuratorAudio />
 
       {/* Mobile controls */}
       <MobileHud mobileInputRef={mobileInputRef} />
