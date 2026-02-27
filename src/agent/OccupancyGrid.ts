@@ -1,8 +1,9 @@
-import { CellState, type AgentConfig, type GridCoord } from './types';
+import { CellState, SemanticLabel, type AgentConfig, type GridCoord } from './types';
 
 /**
  * 2D occupancy grid for the XZ plane. Each cell stores UNKNOWN, EMPTY, or OCCUPIED.
- * Also maintains a height map (floor Y per cell) for surface-following visualization.
+ * Also maintains a height map (floor Y per cell) for surface-following visualization,
+ * and a semantic label layer populated by SAM-3 segmentation splash projection.
  * Uses flat typed arrays for memory efficiency.
  */
 export class OccupancyGrid {
@@ -12,6 +13,8 @@ export class OccupancyGrid {
   readonly cells: Uint8Array;
   /** Floor Y height per cell (parallel to cells array). */
   readonly heights: Float32Array;
+  /** Semantic label per cell (SemanticLabel enum, 0 = NONE). */
+  readonly semantics: Uint8Array;
   /** World X of grid cell (0, 0) bottom-left corner */
   originX: number;
   /** World Z of grid cell (0, 0) bottom-left corner */
@@ -27,6 +30,7 @@ export class OccupancyGrid {
     this.cellSize = config.cellSize;
     this.cells = new Uint8Array(this.width * this.height); // all UNKNOWN (0)
     this.heights = new Float32Array(this.width * this.height); // all 0
+    this.semantics = new Uint8Array(this.width * this.height); // all NONE (0)
     this.originX = originX;
     this.originZ = originZ;
   }
@@ -69,6 +73,16 @@ export class OccupancyGrid {
   setHeight(gx: number, gz: number, y: number): void {
     if (!this.inBounds(gx, gz)) return;
     this.heights[gz * this.width + gx] = y;
+  }
+
+  getSemantic(gx: number, gz: number): SemanticLabel {
+    if (!this.inBounds(gx, gz)) return SemanticLabel.NONE;
+    return this.semantics[gz * this.width + gx] as SemanticLabel;
+  }
+
+  setSemantic(gx: number, gz: number, label: SemanticLabel): void {
+    if (!this.inBounds(gx, gz)) return;
+    this.semantics[gz * this.width + gx] = label;
   }
 
   /**
@@ -135,17 +149,19 @@ export class OccupancyGrid {
     }
   }
 
-  /** Reset all cells to UNKNOWN. */
+  /** Reset all cells to UNKNOWN and clear semantic labels. */
   reset(): void {
     this.cells.fill(CellState.UNKNOWN);
     this.heights.fill(0);
+    this.semantics.fill(SemanticLabel.NONE);
   }
 
   /** Count cells by state for statistics. */
-  stats(): { unknown: number; empty: number; occupied: number; totalKnown: number } {
+  stats(): { unknown: number; empty: number; occupied: number; totalKnown: number; labeled: number } {
     let unknown = 0;
     let empty = 0;
     let occupied = 0;
+    let labeled = 0;
     const len = this.cells.length;
     for (let i = 0; i < len; i++) {
       switch (this.cells[i]) {
@@ -153,7 +169,8 @@ export class OccupancyGrid {
         case CellState.EMPTY: empty++; break;
         case CellState.OCCUPIED: occupied++; break;
       }
+      if (this.semantics[i] !== SemanticLabel.NONE) labeled++;
     }
-    return { unknown, empty, occupied, totalKnown: empty + occupied };
+    return { unknown, empty, occupied, totalKnown: empty + occupied, labeled };
   }
 }

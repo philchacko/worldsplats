@@ -4,48 +4,113 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAgent } from '@/providers/agent';
-import { CellState } from '@/agent/types';
+import { CellState, SemanticLabel } from '@/agent/types';
 
-// Colors
-const COLOR_EMPTY = new THREE.Color(0x44aa44);
+// Base colors
 const COLOR_OCCUPIED = new THREE.Color(0xff4444);
 const COLOR_AGENT = new THREE.Color(0xff8800);
 const COLOR_LIDAR = new THREE.Color(0xffff00);
 const COLOR_PATH = new THREE.Color(0x00ffff);
 
-// Max cells to render in InstancedMesh (performance cap)
-const MAX_GRID_INSTANCES = 8000;
-// Max LiDAR ray segments (2 points per ray)
+// Semantic label colors — bright, vivid palette
+const SEMANTIC_COLORS: Record<number, THREE.Color> = {
+  [SemanticLabel.FLOOR]:     new THREE.Color(0xFFDD44), // bright gold
+  [SemanticLabel.WALL]:      new THREE.Color(0x44AAFF), // bright blue
+  [SemanticLabel.CEILING]:   new THREE.Color(0xAADDFF), // light sky
+  [SemanticLabel.DOOR]:      new THREE.Color(0xFF8800), // bright orange
+  [SemanticLabel.WINDOW]:    new THREE.Color(0x33FFDD), // bright cyan
+  [SemanticLabel.SOFA]:      new THREE.Color(0xFF44FF), // hot magenta
+  [SemanticLabel.TABLE]:     new THREE.Color(0xFF6622), // deep orange
+  [SemanticLabel.CHAIR]:     new THREE.Color(0x44FF66), // neon green
+  [SemanticLabel.RUG]:       new THREE.Color(0xFF4466), // bright red-pink
+  [SemanticLabel.LAMP]:      new THREE.Color(0xFFFF44), // bright yellow
+  [SemanticLabel.BOOKSHELF]: new THREE.Color(0x44FFCC), // bright teal
+  [SemanticLabel.PAINTING]:  new THREE.Color(0xFF44AA), // hot pink
+};
+
+// Instance caps
+const MAX_OUTLINE_INSTANCES = 4000;   // occupied-only outlines (much fewer than before)
+const MAX_SEMANTIC_INSTANCES = 4000;  // semantic fills
 const MAX_LIDAR_POINTS = 72 * 2;
-// Max path points
 const MAX_PATH_POINTS = 200;
+
+// Render radius in grid cells — at 0.1m/cell this is 10m, enough
+// to cover the full room and catch distant semantic projections.
+const RENDER_RADIUS = 100;
 
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
 
 /**
+ * Create a hollow-square (outline) geometry for a single cell.
+ * Uses a Shape with a rectangular hole punched out, producing
+ * a thin border when rendered as a flat mesh.
+ */
+function makeOutlineGeom(size: number, borderWidth: number): THREE.ShapeGeometry {
+  const half = size / 2;
+  const inner = half - borderWidth;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(-half, -half);
+  shape.lineTo(half, -half);
+  shape.lineTo(half, half);
+  shape.lineTo(-half, half);
+  shape.closePath();
+
+  const hole = new THREE.Path();
+  hole.moveTo(-inner, -inner);
+  hole.lineTo(inner, -inner);
+  hole.lineTo(inner, inner);
+  hole.lineTo(-inner, inner);
+  hole.closePath();
+  shape.holes.push(hole);
+
+  return new THREE.ShapeGeometry(shape);
+}
+
+/**
  * Renders the agent's occupancy grid, LiDAR rays, planned path,
  * and agent marker as Three.js objects inside the R3F Canvas.
+ *
+ * Visual strategy:
+ *  - OCCUPIED unlabeled cells → thin red outlines (walls/obstacles)
+ *  - Semantically labeled cells → bright colored outlines (the main visual)
+ *  - EMPTY unlabeled cells → not rendered (reduces clutter)
+ *  - LiDAR rays + agent marker → same as before
  */
 export default function AgentVisualizer() {
   const { enabled, showViz, vizDataRef, config } = useAgent();
 
-  const gridRef = useRef<THREE.InstancedMesh>(null);
+  const outlineRef = useRef<THREE.InstancedMesh>(null);
+  const semanticRef = useRef<THREE.InstancedMesh>(null);
   const lidarRef = useRef<THREE.LineSegments>(null);
   const agentRef = useRef<THREE.Mesh>(null);
 
-  // Cell plane size matches grid cellSize (with small gap for visibility)
-  const cellVisualSize = config.cellSize * 0.9;
+  const cellVisualSize = config.cellSize * 0.95;
+  const borderWidth = config.cellSize * 0.12;
 
-  // Pre-allocated geometries and materials
-  const gridGeom = useMemo(
-    () => new THREE.PlaneGeometry(cellVisualSize, cellVisualSize),
-    [cellVisualSize],
+  // Outline geometry (hollow square) for occupied + semantic cells
+  const outlineGeom = useMemo(
+    () => makeOutlineGeom(cellVisualSize, borderWidth),
+    [cellVisualSize, borderWidth],
   );
-  const gridMat = useMemo(() => new THREE.MeshBasicMaterial({
+  const outlineMat = useMemo(() => new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  }), []);
+
+  // Semantic outlines — same geometry but brighter
+  const semanticGeom = useMemo(
+    () => makeOutlineGeom(cellVisualSize, borderWidth),
+    [cellVisualSize, borderWidth],
+  );
+  const semanticMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
     side: THREE.DoubleSide,
     depthWrite: false,
   }), []);
@@ -57,7 +122,6 @@ export default function AgentVisualizer() {
     return g;
   }, []);
 
-  // Path line created imperatively (avoids JSX <line> / SVG conflict)
   const pathLine = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(MAX_PATH_POINTS * 3), 3));
@@ -66,7 +130,6 @@ export default function AgentVisualizer() {
     return new THREE.Line(g, mat);
   }, []);
 
-  // Update visualization each frame (no React state, just imperative Three.js)
   useFrame(() => {
     if (!enabled || !showViz) return;
     const data = vizDataRef.current;
@@ -80,41 +143,67 @@ export default function AgentVisualizer() {
       agentRef.current.position.set(agentPos[0], agentY + 0.5, agentPos[2]);
     }
 
-    // ── Grid InstancedMesh ──
-    if (gridRef.current) {
-      const inst = gridRef.current;
-      let count = 0;
+    // ── Grid cells ──
+    const outlineInst = outlineRef.current;
+    const semInst = semanticRef.current;
 
-      // Only render cells within a radius of the agent for performance
-      const renderRadius = 30; // grid cells
+    if (outlineInst) {
+      let outlineCount = 0;
+      let semCount = 0;
+
       const agentGrid = grid.worldToGrid(agentPos[0], agentPos[2]);
-      const minGx = Math.max(0, agentGrid.gx - renderRadius);
-      const maxGx = Math.min(grid.width - 1, agentGrid.gx + renderRadius);
-      const minGz = Math.max(0, agentGrid.gz - renderRadius);
-      const maxGz = Math.min(grid.height - 1, agentGrid.gz + renderRadius);
+      const minGx = Math.max(0, agentGrid.gx - RENDER_RADIUS);
+      const maxGx = Math.min(grid.width - 1, agentGrid.gx + RENDER_RADIUS);
+      const minGz = Math.max(0, agentGrid.gz - RENDER_RADIUS);
+      const maxGz = Math.min(grid.height - 1, agentGrid.gz + RENDER_RADIUS);
 
-      for (let gz = minGz; gz <= maxGz && count < MAX_GRID_INSTANCES; gz++) {
-        for (let gx = minGx; gx <= maxGx && count < MAX_GRID_INSTANCES; gx++) {
+      for (let gz = minGz; gz <= maxGz; gz++) {
+        for (let gx = minGx; gx <= maxGx; gx++) {
           const cell = grid.get(gx, gz);
           if (cell === CellState.UNKNOWN) continue;
 
+          const semantic = grid.getSemantic(gx, gz);
           const { wx, wz } = grid.gridToWorld(gx, gz);
-          // Use per-cell height from height map + small offset to sit on surface
           const cellY = grid.getHeight(gx, gz) + 0.02;
-          _dummy.position.set(wx, cellY, wz);
-          _dummy.rotation.set(-Math.PI / 2, 0, 0); // lie flat on XZ plane
-          _dummy.updateMatrix();
-          inst.setMatrixAt(count, _dummy.matrix);
 
-          _color.copy(cell === CellState.OCCUPIED ? COLOR_OCCUPIED : COLOR_EMPTY);
-          inst.setColorAt(count, _color);
-          count++;
+          // Semantic labeled cell → bright colored outline (primary visual)
+          if (
+            semantic !== SemanticLabel.NONE &&
+            SEMANTIC_COLORS[semantic] &&
+            semInst &&
+            semCount < MAX_SEMANTIC_INSTANCES
+          ) {
+            _dummy.position.set(wx, cellY + 0.03, wz);
+            _dummy.rotation.set(-Math.PI / 2, 0, 0);
+            _dummy.updateMatrix();
+            semInst.setMatrixAt(semCount, _dummy.matrix);
+            _color.copy(SEMANTIC_COLORS[semantic]);
+            semInst.setColorAt(semCount, _color);
+            semCount++;
+          }
+          // Occupied unlabeled cell → dim red outline (walls/obstacles)
+          else if (cell === CellState.OCCUPIED && outlineCount < MAX_OUTLINE_INSTANCES) {
+            _dummy.position.set(wx, cellY, wz);
+            _dummy.rotation.set(-Math.PI / 2, 0, 0);
+            _dummy.updateMatrix();
+            outlineInst.setMatrixAt(outlineCount, _dummy.matrix);
+            _color.copy(COLOR_OCCUPIED);
+            outlineInst.setColorAt(outlineCount, _color);
+            outlineCount++;
+          }
+          // EMPTY unlabeled → skip entirely (clean floor)
         }
       }
 
-      inst.count = count;
-      inst.instanceMatrix.needsUpdate = true;
-      if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+      outlineInst.count = outlineCount;
+      outlineInst.instanceMatrix.needsUpdate = true;
+      if (outlineInst.instanceColor) outlineInst.instanceColor.needsUpdate = true;
+
+      if (semInst) {
+        semInst.count = semCount;
+        semInst.instanceMatrix.needsUpdate = true;
+        if (semInst.instanceColor) semInst.instanceColor.needsUpdate = true;
+      }
     }
 
     // ── LiDAR rays ──
@@ -126,11 +215,9 @@ export default function AgentVisualizer() {
 
       for (let i = 0; i < lidarHits.length && idx < MAX_LIDAR_POINTS * 3; i++) {
         const hit = lidarHits[i];
-        // Start point (agent position)
         arr[idx++] = agentPos[0];
         arr[idx++] = rayY;
         arr[idx++] = agentPos[2];
-        // End point (hit position — use floor Y for endpoint)
         arr[idx++] = hit.worldX;
         arr[idx++] = hit.worldY;
         arr[idx++] = hit.worldZ;
@@ -167,10 +254,17 @@ export default function AgentVisualizer() {
 
   return (
     <group>
-      {/* Grid cells (instanced for performance) */}
+      {/* Occupied unlabeled cells — dim red outlines (walls/obstacles) */}
       <instancedMesh
-        ref={gridRef}
-        args={[gridGeom, gridMat, MAX_GRID_INSTANCES]}
+        ref={outlineRef}
+        args={[outlineGeom, outlineMat, MAX_OUTLINE_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      {/* Semantic labeled cells — bright colored outlines */}
+      <instancedMesh
+        ref={semanticRef}
+        args={[semanticGeom, semanticMat, MAX_SEMANTIC_INSTANCES]}
         frustumCulled={false}
       />
 
@@ -179,7 +273,7 @@ export default function AgentVisualizer() {
         <lineBasicMaterial color={COLOR_LIDAR} transparent opacity={0.4} depthWrite={false} />
       </lineSegments>
 
-      {/* Planned path (primitive to avoid JSX <line> SVG conflict) */}
+      {/* Planned path */}
       <primitive object={pathLine} frustumCulled={false} />
 
       {/* Agent marker (orange sphere) */}

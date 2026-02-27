@@ -60,6 +60,40 @@ export type FrontierCluster = {
   size: number;
 };
 
+/* ── Semantic Labels ── */
+
+export enum SemanticLabel {
+  NONE = 0,
+  FLOOR = 1,
+  WALL = 2,
+  CEILING = 3,
+  DOOR = 4,
+  WINDOW = 5,
+  SOFA = 6,
+  TABLE = 7,
+  CHAIR = 8,
+  RUG = 9,
+  LAMP = 10,
+  BOOKSHELF = 11,
+  PAINTING = 12,
+}
+
+/** Map concept strings (from SAM-3 prompts) to semantic label IDs. */
+export const CONCEPT_TO_LABEL: Record<string, SemanticLabel> = {
+  floor: SemanticLabel.FLOOR,
+  wall: SemanticLabel.WALL,
+  ceiling: SemanticLabel.CEILING,
+  door: SemanticLabel.DOOR,
+  window: SemanticLabel.WINDOW,
+  sofa: SemanticLabel.SOFA,
+  table: SemanticLabel.TABLE,
+  chair: SemanticLabel.CHAIR,
+  rug: SemanticLabel.RUG,
+  lamp: SemanticLabel.LAMP,
+  bookshelf: SemanticLabel.BOOKSHELF,
+  painting: SemanticLabel.PAINTING,
+};
+
 /* ── Segmentation (SAM-3 via fal.ai) ── */
 
 export type SegmentationMask = {
@@ -73,5 +107,6 @@ export type SegmentationResult = {
   masks: SegmentationMask[];
   imageWidth: number;
   imageHeight: number;
-  viewProjectionMatrix: number[]; // 16 floats, for future 3D splash
+  viewProjectionMatrix: number[]; // 16 floats, column-major
+  cameraPosition: [number, number, number]; // world-space camera origin
 };

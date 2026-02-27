@@ -10,8 +10,8 @@ import { Button } from '@/components/hud/Button';
  * Shows start/stop, visualization toggle, and live stats.
  */
 export default function AgentHud() {
-  const { enabled, setEnabled, showViz, setShowViz, vizDataRef, triggerDeepScan } = useAgent();
-  const [stats, setStats] = useState({ state: AgentState.IDLE, explored: 0, total: 0 });
+  const { enabled, setEnabled, showViz, setShowViz, vizDataRef, triggerDeepScan, lastSplashRef } = useAgent();
+  const [stats, setStats] = useState({ state: AgentState.IDLE, explored: 0, total: 0, labeled: 0 });
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
 
@@ -23,14 +23,16 @@ export default function AgentHud() {
     try {
       const result = await triggerDeepScan();
       const labels = result.masks.map((m) => m.label).join(', ');
-      setScanResult(`${result.masks.length} masks: ${labels}`);
+      const splash = lastSplashRef.current;
+      const tagged = splash ? ` → ${splash.totalTagged} cells tagged` : '';
+      setScanResult(`${result.masks.length} masks: ${labels}${tagged}`);
     } catch (err) {
       console.error('[DeepScan]', err);
       setScanResult(`Error: ${err}`);
     } finally {
       setScanning(false);
     }
-  }, [triggerDeepScan]);
+  }, [triggerDeepScan, lastSplashRef]);
 
   // Poll stats from vizDataRef at 2 Hz (no per-frame React re-renders)
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function AgentHud() {
       const data = vizDataRef.current;
       if (!data) return;
       const s = data.grid.stats();
-      setStats({ state: data.state, explored: s.totalKnown, total: s.totalKnown + s.unknown });
+      setStats({ state: data.state, explored: s.totalKnown, total: s.totalKnown + s.unknown, labeled: s.labeled });
     }, 500);
     return () => clearInterval(id);
   }, [enabled, vizDataRef]);
@@ -77,6 +79,9 @@ export default function AgentHud() {
         <div className="text-secondary space-y-0.5">
           <p>State: <span className="text-zinc-200">{stats.state}</span></p>
           <p>Mapped: <span className="text-zinc-200">{stats.explored.toLocaleString()} cells ({pct}%)</span></p>
+          {stats.labeled > 0 && (
+            <p>Labeled: <span className="text-amber-300">{stats.labeled.toLocaleString()} cells</span></p>
+          )}
         </div>
       )}
     </div>

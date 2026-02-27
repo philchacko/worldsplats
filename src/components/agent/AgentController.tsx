@@ -17,14 +17,18 @@ import { OccupancyGrid } from '@/agent/OccupancyGrid';
  */
 export default function AgentController() {
   const { world, rapier, playerBody } = useRapierWorld();
-  const { enabled, config, vizDataRef, commandTargetRef, clearCommand } = useAgent();
+  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan } = useAgent();
 
   const posRef = useRef(new THREE.Vector3());
   const scannerRef = useRef<LidarScanner | null>(null);
-  const gridRef = useRef<OccupancyGrid | null>(null);
   const scanTimerRef = useRef(0);
+  const deepScanTimerRef = useRef(0);
+  const deepScanInFlightRef = useRef(false);
   const stateRef = useRef<AgentState>(AgentState.IDLE);
   const initializedRef = useRef(false);
+
+  /** How often to auto-trigger a deep scan (seconds). */
+  const DEEP_SCAN_INTERVAL = 20;
 
   // Initialize/reset when enabled state changes
   useEffect(() => {
@@ -34,6 +38,8 @@ export default function AgentController() {
       vizDataRef.current = null;
       initializedRef.current = false;
       stateRef.current = AgentState.IDLE;
+      deepScanTimerRef.current = 0;
+      deepScanInFlightRef.current = false;
       return;
     }
 
@@ -49,12 +55,13 @@ export default function AgentController() {
     posRef.current.set(spawnX, spawnY, spawnZ);
     scannerRef.current = new LidarScanner(config);
 
-    // Center grid on spawn
+    // Center grid on spawn — shared via provider's gridRef
     const halfW = (config.gridWidth * config.cellSize) / 2;
     const halfH = (config.gridHeight * config.cellSize) / 2;
     gridRef.current = new OccupancyGrid(config, spawnX - halfW, spawnZ - halfH);
 
     scanTimerRef.current = config.scanInterval; // trigger immediate first scan
+    deepScanTimerRef.current = 0;
     stateRef.current = AgentState.IDLE;
     initializedRef.current = true;
 
@@ -63,7 +70,7 @@ export default function AgentController() {
       gridRef.current = null;
       initializedRef.current = false;
     };
-  }, [enabled, world, rapier, playerBody, config, vizDataRef]);
+  }, [enabled, world, rapier, playerBody, config, vizDataRef, gridRef]);
 
   useFrame((_, delta) => {
     if (!enabled || !initializedRef.current || !rapier || !world) return;
@@ -117,6 +124,22 @@ export default function AgentController() {
       // Update position every frame even without a scan
       vizDataRef.current.agentPos = [pos.x, pos.y, pos.z];
       vizDataRef.current.state = stateRef.current;
+    }
+
+    // ── Auto deep scan (periodic SAM-3 segmentation) ──
+    deepScanTimerRef.current += delta;
+    if (
+      deepScanTimerRef.current >= DEEP_SCAN_INTERVAL &&
+      !deepScanInFlightRef.current &&
+      grid.stats().totalKnown > 50 // wait for some LiDAR data first
+    ) {
+      deepScanTimerRef.current = 0;
+      deepScanInFlightRef.current = true;
+      triggerDeepScan().catch((err) => {
+        console.warn('[AgentController] auto deep scan failed:', err);
+      }).finally(() => {
+        deepScanInFlightRef.current = false;
+      });
     }
   });
 

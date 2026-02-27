@@ -26,6 +26,11 @@ export function captureSnapshot(
   // This is valid even with preserveDrawingBuffer:false because
   // we're in the same synchronous call stack as render().
   const glCtx = gl.getContext() as WebGL2RenderingContext;
+
+  // Unbind any Pixel Buffer Object — Three.js / Spark may leave one bound,
+  // causing "PIXEL_PACK buffer should not be bound" on readPixels.
+  glCtx.bindBuffer(glCtx.PIXEL_PACK_BUFFER, null);
+
   const pixels = new Uint8Array(w * h * 4);
   glCtx.readPixels(0, 0, w, h, glCtx.RGBA, glCtx.UNSIGNED_BYTE, pixels);
 

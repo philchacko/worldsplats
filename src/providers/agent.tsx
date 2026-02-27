@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { AgentState, DEFAULT_AGENT_CONFIG, type AgentConfig, type LidarHit, type SegmentationResult } from '@/agent/types';
 import type { OccupancyGrid } from '@/agent/OccupancyGrid';
 import { segmentScene, DEFAULT_CONCEPTS } from '@/agent/segmentation';
+import { splashSegmentation } from '@/agent/semanticSplash';
 
 /** Data written each frame by AgentController, read by AgentVisualizer. */
 export type VizData = {
@@ -22,6 +23,12 @@ export type R3FContext = {
   camera: THREE.Camera;
 };
 
+/** Stats from the last splash projection. */
+export type SplashStats = {
+  totalTagged: number;
+  perLabel: Record<string, number>;
+};
+
 type AgentAPI = {
   enabled: boolean;
   setEnabled: (v: boolean) => void;
@@ -33,12 +40,16 @@ type AgentAPI = {
   commandTargetRef: React.MutableRefObject<[number, number, number] | null>;
   /** R3F renderer context, written from inside the Canvas. */
   r3fRef: React.MutableRefObject<R3FContext | null>;
+  /** The occupancy grid, shared between AgentController and splash projector. */
+  gridRef: React.MutableRefObject<OccupancyGrid | null>;
   /** Send the agent to a world-space target. Auto-enables the agent on first call. */
   issueCommand: (target: [number, number, number]) => void;
   /** Clear the current command (agent stops). */
   clearCommand: () => void;
-  /** Run SAM-3 segmentation on the current camera view. */
+  /** Run SAM-3 segmentation + splash projection onto the occupancy grid. */
   triggerDeepScan: (concepts?: string[]) => Promise<SegmentationResult>;
+  /** Stats from the most recent splash projection. */
+  lastSplashRef: React.MutableRefObject<SplashStats | null>;
 };
 
 const AgentCtx = createContext<AgentAPI | null>(null);
@@ -49,6 +60,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const vizDataRef = useRef<VizData | null>(null);
   const commandTargetRef = useRef<[number, number, number] | null>(null);
   const r3fRef = useRef<R3FContext | null>(null);
+  const gridRef = useRef<OccupancyGrid | null>(null);
+  const lastSplashRef = useRef<SplashStats | null>(null);
   // Ref mirror of enabled to avoid stale closures in issueCommand
   const enabledRef = useRef(false);
   enabledRef.current = enabled;
@@ -58,6 +71,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (!v) {
       vizDataRef.current = null;
       commandTargetRef.current = null;
+      gridRef.current = null;
+      lastSplashRef.current = null;
     }
   }, []);
 
@@ -80,6 +95,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       `[DeepScan] ${result.masks.length} masks:`,
       result.masks.map((m) => `${m.label} (${(m.score * 100).toFixed(0)}%)`),
     );
+
+    // Splash: project 2D masks onto the 3D occupancy grid
+    const grid = gridRef.current;
+    if (grid && result.masks.length > 0) {
+      const stats = splashSegmentation(result, grid);
+      lastSplashRef.current = stats;
+      console.log(`[DeepScan] splashed ${stats.totalTagged} cells onto grid`);
+    } else if (!grid) {
+      console.warn('[DeepScan] no occupancy grid available — enable the agent first');
+    }
+
     return result;
   }, []);
 
@@ -92,9 +118,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     vizDataRef,
     commandTargetRef,
     r3fRef,
+    gridRef,
     issueCommand,
     clearCommand,
     triggerDeepScan,
+    lastSplashRef,
   }), [enabled, stableSetEnabled, showViz, issueCommand, clearCommand, triggerDeepScan]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;

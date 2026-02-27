@@ -43,11 +43,13 @@ export async function segmentScene(
   console.log('[segmentScene] snapshot size:', Math.round(imageBase64.length / 1024), 'KB');
   console.log('[segmentScene] preview:', imageBase64.slice(0, 80) + '...');
 
-  // 2. Store the view-projection matrix for future 3D projection
+  // 2. Store the view-projection matrix + camera position for 3D splash projection
   const projMatrix = new THREE.Matrix4();
   if (camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera) {
     projMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   }
+  const camWorldPos = new THREE.Vector3();
+  camera.getWorldPosition(camWorldPos);
 
   // 3. Call our server-side proxy
   const res = await fetch('/api/segment', {
@@ -72,5 +74,6 @@ export async function segmentScene(
     imageWidth: w,
     imageHeight: h,
     viewProjectionMatrix: projMatrix.elements as unknown as number[],
+    cameraPosition: [camWorldPos.x, camWorldPos.y, camWorldPos.z] as [number, number, number],
   };
 }
