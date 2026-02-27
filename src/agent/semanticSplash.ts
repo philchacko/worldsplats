@@ -36,6 +36,9 @@ export function splashSegmentation(
   // Estimate the average floor height from the grid's known cells
   const floorY = estimateFloorY(grid, camPos);
 
+  console.log(`[splash] camera=(${camPos.x.toFixed(2)}, ${camPos.y.toFixed(2)}, ${camPos.z.toFixed(2)}) floorY=${floorY.toFixed(3)} image=${imageWidth}×${imageHeight}`);
+  console.log(`[splash] grid origin=(${grid.originX.toFixed(2)}, ${grid.originZ.toFixed(2)}) size=${grid.width}×${grid.height} cellSize=${grid.cellSize}`);
+
   const perLabel: Record<string, number> = {};
   let totalTagged = 0;
 
@@ -53,6 +56,12 @@ export function splashSegmentation(
       continue;
     }
 
+    // Skip vertical surfaces — floor plane intersection produces garbage for walls etc.
+    if (!isFloorProjectable(label)) {
+      console.log(`[splash] skipping "${mask.label}" (vertical surface, not floor-projectable)`);
+      continue;
+    }
+
     // Decode RLE to binary mask
     const decoded = decodeRLE(mask.rle, imageWidth, imageHeight);
     const pixelCount = countMaskPixels(decoded);
@@ -63,15 +72,21 @@ export function splashSegmentation(
 
     console.log(`[splash] "${mask.label}" → ${pixelCount} pixels, label=${SemanticLabel[label]}`);
 
-    // Choose the intersection plane Y based on the concept type
-    const intersectY = getIntersectY(label, floorY, camPos.y);
+    // All floor-projectable concepts intersect the floor plane
+    const intersectY = floorY;
 
     let tagged = 0;
+    let outOfBounds = 0;
+    let unknown = 0;
+    let behindCamera = 0;
+    let sampled = 0;
+    const sampleHits: string[] = []; // first few hit positions for debugging
 
     // Sample the mask at stride intervals
     for (let py = 0; py < imageHeight; py += stride) {
       for (let px = 0; px < imageWidth; px += stride) {
         if (!decoded[py * imageWidth + px]) continue;
+        sampled++;
 
         // Convert pixel to NDC
         const ndcX = (2 * px / imageWidth) - 1;
@@ -99,28 +114,32 @@ export function splashSegmentation(
         // Solve: worldNear.y + t * dirY = intersectY
         if (Math.abs(dirY) < 1e-6) continue; // ray nearly parallel to plane
         const t = (intersectY - worldNear.y) / dirY;
-        if (t < 0) continue; // intersection behind camera
+        if (t < 0) { behindCamera++; continue; } // intersection behind camera
 
         const hitX = worldNear.x + t * dirX;
         const hitZ = worldNear.z + t * dirZ;
 
         // Convert to grid coordinates
         const { gx, gz } = grid.worldToGrid(hitX, hitZ);
-        if (!grid.inBounds(gx, gz)) continue;
+        if (!grid.inBounds(gx, gz)) { outOfBounds++; continue; }
 
         // Only tag cells that LiDAR has already explored
         const cell = grid.get(gx, gz);
-        if (cell === CellState.UNKNOWN) continue;
+        if (cell === CellState.UNKNOWN) { unknown++; continue; }
 
         // Tag with semantic label (higher-confidence labels overwrite lower)
         const existing = grid.getSemantic(gx, gz);
         if (existing === SemanticLabel.NONE || mask.score > 0.5) {
           grid.setSemantic(gx, gz, label);
+          if (sampleHits.length < 3) {
+            sampleHits.push(`(${hitX.toFixed(2)},${hitZ.toFixed(2)})→[${gx},${gz}]`);
+          }
           tagged++;
         }
       }
     }
 
+    console.log(`[splash]   "${mask.label}": sampled=${sampled} tagged=${tagged} outOfBounds=${outOfBounds} unknown=${unknown} behindCamera=${behindCamera}${sampleHits.length > 0 ? ` hits: ${sampleHits.join(', ')}` : ''}`);
     perLabel[mask.label] = tagged;
     totalTagged += tagged;
   }
@@ -157,24 +176,28 @@ function estimateFloorY(grid: OccupancyGrid, camPos: THREE.Vector3): number {
 }
 
 /**
- * Choose the Y-plane to intersect based on the concept type.
- * - Floor/rug → floor plane
- * - Wall/door/window/painting → project onto floor for XZ footprint
- * - Ceiling → project onto floor for room outline
- * - Furniture → floor plane (gives XZ footprint)
+ * Concepts whose masks can be meaningfully projected onto a horizontal
+ * floor plane. Vertical surfaces (walls, ceilings, paintings, windows,
+ * doors) smear wildly when intersected with a horizontal plane — their
+ * pixels project to scattered points far from the actual object.
+ *
+ * Only floor-level concepts produce clean XZ footprints via floor
+ * intersection. Vertical concepts need a different projection strategy
+ * (e.g. depth-based or vertical plane intersection) — skipped for now.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getIntersectY(label: SemanticLabel, floorY: number, _cameraY: number): number {
-  // For V1, project everything onto the floor plane.
-  // This gives us the XZ footprint of every semantic region,
-  // which is exactly what the 2D occupancy grid needs.
-  //
-  // Future: for walls, could intersect with vertical planes
-  // based on the occupancy grid's OCCUPIED cells.
-  switch (label) {
-    case SemanticLabel.CEILING:
-      return floorY; // project ceiling outline down to floor
-    default:
-      return floorY;
-  }
+const FLOOR_PROJECTABLE = new Set<SemanticLabel>([
+  SemanticLabel.FLOOR,
+  SemanticLabel.RUG,
+  SemanticLabel.TABLE,
+  SemanticLabel.CHAIR,
+  SemanticLabel.SOFA,
+  SemanticLabel.LAMP,
+  SemanticLabel.BOOKSHELF,
+]);
+
+/**
+ * Check if a label can be meaningfully projected onto the floor plane.
+ */
+function isFloorProjectable(label: SemanticLabel): boolean {
+  return FLOOR_PROJECTABLE.has(label);
 }

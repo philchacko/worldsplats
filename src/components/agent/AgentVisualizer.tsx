@@ -74,7 +74,7 @@ function makeOutlineGeom(size: number, borderWidth: number): THREE.ShapeGeometry
  *
  * Visual strategy:
  *  - OCCUPIED unlabeled cells → thin red outlines (walls/obstacles)
- *  - Semantically labeled cells → bright colored outlines (the main visual)
+ *  - Semantically labeled cells → bright filled squares (the main visual)
  *  - EMPTY unlabeled cells → not rendered (reduces clutter)
  *  - LiDAR rays + agent marker → same as before
  */
@@ -85,32 +85,36 @@ export default function AgentVisualizer() {
   const semanticRef = useRef<THREE.InstancedMesh>(null);
   const lidarRef = useRef<THREE.LineSegments>(null);
   const agentRef = useRef<THREE.Mesh>(null);
+  const logCounterRef = useRef(0);
 
   const cellVisualSize = config.cellSize * 0.95;
   const borderWidth = config.cellSize * 0.12;
 
-  // Outline geometry (hollow square) for occupied + semantic cells
+  // Outline geometry (hollow square) for occupied unlabeled cells
   const outlineGeom = useMemo(
     () => makeOutlineGeom(cellVisualSize, borderWidth),
     [cellVisualSize, borderWidth],
   );
+  // NOTE: Do NOT use vertexColors:true — ShapeGeometry has no vertex color
+  // attribute, which would zero out the instance colors. Instance colors
+  // (setColorAt) work independently via USE_INSTANCING_COLOR.
   const outlineMat = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true,
+    color: 0xffffff,
     transparent: true,
     opacity: 0.5,
     side: THREE.DoubleSide,
     depthWrite: false,
   }), []);
 
-  // Semantic outlines — same geometry but brighter
+  // Semantic geometry — FILLED square (PlaneGeometry) to be visually distinct from outlines
   const semanticGeom = useMemo(
-    () => makeOutlineGeom(cellVisualSize, borderWidth),
-    [cellVisualSize, borderWidth],
+    () => new THREE.PlaneGeometry(cellVisualSize, cellVisualSize),
+    [cellVisualSize],
   );
   const semanticMat = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true,
+    color: 0xffffff,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.7,
     side: THREE.DoubleSide,
     depthWrite: false,
   }), []);
@@ -203,6 +207,15 @@ export default function AgentVisualizer() {
         semInst.count = semCount;
         semInst.instanceMatrix.needsUpdate = true;
         if (semInst.instanceColor) semInst.instanceColor.needsUpdate = true;
+      }
+
+      // Log instance counts every ~2 seconds (120 frames at 60fps)
+      logCounterRef.current++;
+      if (logCounterRef.current >= 120) {
+        logCounterRef.current = 0;
+        if (semCount > 0 || outlineCount > 0) {
+          console.log(`[viz] rendering: ${outlineCount} outline instances, ${semCount} semantic instances (filled)`);
+        }
       }
     }
 
