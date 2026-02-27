@@ -13,12 +13,20 @@ const CURATOR_SCALE = 0.25;
 /** Vertical offset relative to agent position. Negative = lower (agent Y ≈ player eye ~1.4m). */
 const CURATOR_Y_OFFSET = -0.1;
 /** Amplitude & speed of the idle hover bob. */
-const BOB_AMPLITUDE = 0.06;
+const BOB_AMPLITUDE = 0.05;
 const BOB_SPEED = 2.0;
 /** How quickly the model rotates to face its heading (radians/sec blend factor). */
 const HEADING_LERP = 6.0;
 /** Yaw correction so the model's eye faces +Z (forward) at heading 0. */
 const MODEL_YAW_OFFSET = -Math.PI / 2;
+/** Downward tilt so the eye looks slightly toward the ground. */
+const MODEL_PITCH_OFFSET = 0.15;
+/** Approximate world-space radius of the Curator body; rays start outside this shell. */
+const BODY_RADIUS = 0.35;
+/** Idle wobble — gentle side-to-side sway and tilt for organic feel. */
+const WOBBLE_SWAY = 0.05;   // lateral position sway amplitude
+const WOBBLE_SPEED = 1.6;   // sway cycle speed (slower than bob)
+const WOBBLE_TILT = 0.04;   // roll/pitch tilt amplitude (radians)
 /** Intensity of the fill light illuminating the Curator. */
 const FILL_LIGHT_INTENSITY = 3.0;
 /** Intensity of the eye glow point light. Animate this later for speech. */
@@ -190,13 +198,18 @@ export default function AgentVisualizer() {
 
     // ── Curator model ──
     if (curatorRef.current) {
-      // Bob animation
       bobTimeRef.current += delta;
-      const bob = Math.sin(bobTimeRef.current * BOB_SPEED) * BOB_AMPLITUDE;
+      const t = bobTimeRef.current;
+
+      // Vertical bob + lateral sway on different frequencies for organic feel
+      const bob = Math.sin(t * BOB_SPEED) * BOB_AMPLITUDE;
+      const swayX = Math.sin(t * WOBBLE_SPEED) * WOBBLE_SWAY;
+      const swayZ = Math.cos(t * WOBBLE_SPEED * 0.7) * WOBBLE_SWAY;
+
       curatorRef.current.position.set(
-        agentPos[0],
+        agentPos[0] + swayX,
         agentY + CURATOR_Y_OFFSET + bob,
-        agentPos[2],
+        agentPos[2] + swayZ,
       );
 
       // Heading: derive from movement delta
@@ -205,17 +218,18 @@ export default function AgentVisualizer() {
       const moveDist = Math.sqrt(dx * dx + dz * dz);
 
       if (moveDist > 0.001) {
-        // atan2(dx, dz) gives the angle from +Z toward +X — standard Three.js Y-rotation
         const targetHeading = Math.atan2(dx, dz);
-        // Smooth rotation via shortest-arc lerp
         let diff = targetHeading - headingRef.current;
-        // Wrap to [-PI, PI]
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
         headingRef.current += diff * Math.min(1, HEADING_LERP * delta);
       }
 
-      curatorRef.current.rotation.y = headingRef.current;
+      // Gentle tilt wobble layered on top of the heading
+      const tiltX = Math.sin(t * WOBBLE_SPEED * 1.1) * WOBBLE_TILT;
+      const tiltZ = Math.cos(t * WOBBLE_SPEED * 0.9) * WOBBLE_TILT;
+      curatorRef.current.rotation.set(tiltX, headingRef.current, tiltZ);
+
       prevPosRef.current = [agentPos[0], agentPos[2]];
     }
 
@@ -297,16 +311,24 @@ export default function AgentVisualizer() {
       const arr = positions.array as Float32Array;
       let idx = 0;
 
-      // Use the Curator's X/Z but a fixed Y (no bob) so rays don't wobble
-      const eyeX = agentPos[0];
-      const eyeY = agentY + CURATOR_Y_OFFSET;
-      const eyeZ = agentPos[2];
+      // Logical origin at the Curator's center
+      const originX = agentPos[0];
+      const originY = agentY + CURATOR_Y_OFFSET;
+      const originZ = agentPos[2];
 
       for (let i = 0; i < lidarHits.length && idx < MAX_LIDAR_POINTS * 3; i++) {
         const hit = lidarHits[i];
-        arr[idx++] = eyeX;
-        arr[idx++] = eyeY;
-        arr[idx++] = eyeZ;
+        // Direction from origin to hit
+        const rdx = hit.worldX - originX;
+        const rdy = hit.worldY - originY;
+        const rdz = hit.worldZ - originZ;
+        const len = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz);
+        if (len < BODY_RADIUS) continue; // ray too short, skip entirely
+        // Start the visible segment just outside the body
+        const t = BODY_RADIUS / len;
+        arr[idx++] = originX + rdx * t;
+        arr[idx++] = originY + rdy * t;
+        arr[idx++] = originZ + rdz * t;
         arr[idx++] = hit.worldX;
         arr[idx++] = hit.worldY;
         arr[idx++] = hit.worldZ;
@@ -378,7 +400,7 @@ export default function AgentVisualizer() {
           decay={2}
           position={[0, 0.2, 0.4]}
         />
-        <group scale={CURATOR_SCALE} rotation-y={MODEL_YAW_OFFSET}>
+        <group scale={CURATOR_SCALE} rotation={[MODEL_PITCH_OFFSET, MODEL_YAW_OFFSET, 0]}>
           <primitive object={curatorModel} />
         </group>
       </group>
