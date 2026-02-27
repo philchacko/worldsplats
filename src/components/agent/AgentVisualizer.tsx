@@ -2,13 +2,29 @@
 
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAgent } from '@/providers/agent';
 import { CellState, SemanticLabel } from '@/agent/types';
 
+// Curator model
+const CURATOR_MODEL_PATH = '/characters/thecurator.glb';
+const CURATOR_SCALE = 0.25;
+/** Vertical offset relative to agent position. Negative = lower (agent Y ≈ player eye ~1.4m). */
+const CURATOR_Y_OFFSET = -0.1;
+/** Amplitude & speed of the idle hover bob. */
+const BOB_AMPLITUDE = 0.06;
+const BOB_SPEED = 2.0;
+/** How quickly the model rotates to face its heading (radians/sec blend factor). */
+const HEADING_LERP = 6.0;
+/** Intensity of the fill light illuminating the Curator. */
+const FILL_LIGHT_INTENSITY = 4.0;
+/** Intensity of the eye glow point light. Animate this later for speech. */
+const EYE_LIGHT_INTENSITY = 2.5;
+const EYE_LIGHT_COLOR = 0x88ccff;
+
 // Base colors
 const COLOR_OCCUPIED = new THREE.Color(0xff4444);
-const COLOR_AGENT = new THREE.Color(0xff8800);
 const COLOR_LIDAR = new THREE.Color(0xffff00);
 const COLOR_PATH = new THREE.Color(0x00ffff);
 
@@ -84,8 +100,18 @@ export default function AgentVisualizer() {
   const outlineRef = useRef<THREE.InstancedMesh>(null);
   const semanticRef = useRef<THREE.InstancedMesh>(null);
   const lidarRef = useRef<THREE.LineSegments>(null);
-  const agentRef = useRef<THREE.Mesh>(null);
+  const curatorRef = useRef<THREE.Group>(null);
+  const eyeLightRef = useRef<THREE.PointLight>(null);
   const logCounterRef = useRef(0);
+
+  // Heading tracking for eye direction
+  const prevPosRef = useRef<[number, number]>([0, 0]); // [x, z]
+  const headingRef = useRef(0); // current smoothed Y rotation
+  const bobTimeRef = useRef(0);
+
+  // Load the Curator model
+  const { scene: curatorScene } = useGLTF(CURATOR_MODEL_PATH);
+  const curatorModel = useMemo(() => curatorScene.clone(true), [curatorScene]);
 
   const cellVisualSize = config.cellSize * 0.95;
   const borderWidth = config.cellSize * 0.12;
@@ -134,7 +160,7 @@ export default function AgentVisualizer() {
     return new THREE.Line(g, mat);
   }, []);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!enabled || !showViz) return;
     const data = vizDataRef.current;
     if (!data) return;
@@ -142,9 +168,35 @@ export default function AgentVisualizer() {
     const { agentPos, grid, lidarHits, currentPath } = data;
     const agentY = agentPos[1];
 
-    // ── Agent marker ──
-    if (agentRef.current) {
-      agentRef.current.position.set(agentPos[0], agentY + 0.5, agentPos[2]);
+    // ── Curator model ──
+    if (curatorRef.current) {
+      // Bob animation
+      bobTimeRef.current += delta;
+      const bob = Math.sin(bobTimeRef.current * BOB_SPEED) * BOB_AMPLITUDE;
+      curatorRef.current.position.set(
+        agentPos[0],
+        agentY + CURATOR_Y_OFFSET + bob,
+        agentPos[2],
+      );
+
+      // Heading: derive from movement delta
+      const dx = agentPos[0] - prevPosRef.current[0];
+      const dz = agentPos[2] - prevPosRef.current[1];
+      const moveDist = Math.sqrt(dx * dx + dz * dz);
+
+      if (moveDist > 0.001) {
+        // atan2(dx, dz) gives the angle from +Z toward +X — standard Three.js Y-rotation
+        const targetHeading = Math.atan2(dx, dz);
+        // Smooth rotation via shortest-arc lerp
+        let diff = targetHeading - headingRef.current;
+        // Wrap to [-PI, PI]
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        headingRef.current += diff * Math.min(1, HEADING_LERP * delta);
+      }
+
+      curatorRef.current.rotation.y = headingRef.current;
+      prevPosRef.current = [agentPos[0], agentPos[2]];
     }
 
     // ── Grid cells ──
@@ -289,11 +341,25 @@ export default function AgentVisualizer() {
       {/* Planned path */}
       <primitive object={pathLine} frustumCulled={false} />
 
-      {/* Agent marker (orange sphere) */}
-      <mesh ref={agentRef}>
-        <sphereGeometry args={[0.3, 16, 16]} />
-        <meshBasicMaterial color={COLOR_AGENT} transparent opacity={0.85} />
-      </mesh>
+      {/* The Curator */}
+      <group ref={curatorRef}>
+        {/* Fill light — illuminates the model from above-front so it's visible in any scene */}
+        <pointLight intensity={FILL_LIGHT_INTENSITY} distance={3} decay={2} position={[0, 1, 0.5]} />
+        {/* Eye glow — positioned at the lens. Animate intensity later for speech. */}
+        <pointLight
+          ref={eyeLightRef}
+          color={EYE_LIGHT_COLOR}
+          intensity={EYE_LIGHT_INTENSITY}
+          distance={2}
+          decay={2}
+          position={[0, 0.2, 0.4]}
+        />
+        <group scale={CURATOR_SCALE}>
+          <primitive object={curatorModel} />
+        </group>
+      </group>
     </group>
   );
 }
+
+useGLTF.preload(CURATOR_MODEL_PATH);
