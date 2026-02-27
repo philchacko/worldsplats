@@ -27,6 +27,10 @@ export async function segmentScene(
   // 1. Capture a JPEG data URI from the renderer
   const imageBase64 = captureSnapshot(gl, scene, camera);
 
+  // Debug: log the snapshot so we can verify it has real content
+  console.log('[segmentScene] snapshot size:', Math.round(imageBase64.length / 1024), 'KB');
+  console.log('[segmentScene] preview:', imageBase64.slice(0, 80) + '...');
+
   // 2. Store the view-projection matrix for future 3D projection
   const projMatrix = new THREE.Matrix4();
   if (camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera) {
