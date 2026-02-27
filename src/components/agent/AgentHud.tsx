@@ -10,11 +10,26 @@ import { Button } from '@/components/hud/Button';
  * Shows start/stop, visualization toggle, and live stats.
  */
 export default function AgentHud() {
-  const { enabled, setEnabled, showViz, setShowViz, vizDataRef } = useAgent();
+  const { enabled, setEnabled, showViz, setShowViz, vizDataRef, triggerDeepScan } = useAgent();
   const [stats, setStats] = useState({ state: AgentState.IDLE, explored: 0, total: 0 });
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
 
   const handleToggle = useCallback(() => setEnabled(!enabled), [enabled, setEnabled]);
   const handleViz = useCallback(() => setShowViz(!showViz), [showViz, setShowViz]);
+  const handleDeepScan = useCallback(async () => {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const result = await triggerDeepScan();
+      setScanResult(`${result.masks.length} masks found`);
+    } catch (err) {
+      console.error('[DeepScan]', err);
+      setScanResult(`Error: ${err}`);
+    } finally {
+      setScanning(false);
+    }
+  }, [triggerDeepScan]);
 
   // Poll stats from vizDataRef at 2 Hz (no per-frame React re-renders)
   useEffect(() => {
@@ -46,6 +61,16 @@ export default function AgentHud() {
           />
         )}
       </div>
+
+      <Button
+        onClick={handleDeepScan}
+        label={scanning ? 'Scanning...' : 'Deep Scan'}
+        className="px-3 py-1.5 rounded border border-amber-600 bg-amber-900/60 hover:bg-amber-800 transition-colors text-xs disabled:opacity-50"
+        disabled={scanning}
+      />
+      {scanResult && (
+        <p className="text-amber-300">{scanResult}</p>
+      )}
 
       {enabled && (
         <div className="text-secondary space-y-0.5">

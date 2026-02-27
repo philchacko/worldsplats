@@ -11,6 +11,7 @@ import PointerLockBridge from '@/components/scene/PointerLockBridge';
 import TouchLookController from '@/components/controls/TouchLookController';
 import AgentController from '@/components/agent/AgentController';
 import AgentVisualizer from '@/components/agent/AgentVisualizer';
+import { useAgent } from '@/providers/agent';
 import type { WorldDef, ObjectDef } from '@/data/presets';
 
 export type ShootHandle = {
@@ -35,6 +36,18 @@ type Spawned = {
   startPos: THREE.Vector3;
   velocity: THREE.Vector3;
 };
+
+/** Writes the R3F renderer context into the agent provider so
+ *  code outside the Canvas (e.g. AgentHud) can capture snapshots. */
+function R3FBridge() {
+  const { gl, scene, camera } = useThree();
+  const { r3fRef } = useAgent();
+  useEffect(() => {
+    r3fRef.current = { gl, scene, camera };
+    return () => { r3fRef.current = null; };
+  }, [gl, scene, camera, r3fRef]);
+  return null;
+}
 
 function SceneInner({
   world,
@@ -103,6 +116,9 @@ function SceneInner({
         scale={world.scale}
         onLoadingChange={handleLoadingChange}
       />
+
+      {/* Bridge R3F context to agent provider for snapshot capture */}
+      <R3FBridge />
 
       {/* Autonomous exploration agent */}
       <AgentController />

@@ -39,6 +39,7 @@ import { useRemoteWorlds } from '@/lib/useRemoteWorlds';
 import { Reticle } from '@/components/hud/ClickToPlay';
 import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
+import AgentHud from '@/components/agent/AgentHud';
 
 function OverlayUI({
   world,
@@ -307,6 +308,11 @@ function PageContent() {
 
       {/* Reticle + loading overlays + mute button */}
       <RootUIOverlays isLoading={isLoading} loadError={loadError} />
+
+      {/* Agent HUD - bottom-left */}
+      <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
+        <AgentHud />
+      </div>
 
       {/* Mobile controls */}
       <MobileHud mobileInputRef={mobileInputRef} />

@@ -1,8 +1,10 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { AgentState, DEFAULT_AGENT_CONFIG, type AgentConfig, type LidarHit } from '@/agent/types';
+import * as THREE from 'three';
+import { AgentState, DEFAULT_AGENT_CONFIG, type AgentConfig, type LidarHit, type SegmentationResult } from '@/agent/types';
 import type { OccupancyGrid } from '@/agent/OccupancyGrid';
+import { segmentScene, DEFAULT_CONCEPTS } from '@/agent/segmentation';
 
 /** Data written each frame by AgentController, read by AgentVisualizer. */
 export type VizData = {
@@ -11,6 +13,13 @@ export type VizData = {
   lidarHits: LidarHit[] | null;
   currentPath: [number, number][] | null;
   grid: OccupancyGrid;
+};
+
+/** R3F renderer context — set by a bridge component inside the Canvas. */
+export type R3FContext = {
+  gl: THREE.WebGLRenderer;
+  scene: THREE.Scene;
+  camera: THREE.Camera;
 };
 
 type AgentAPI = {
@@ -22,10 +31,14 @@ type AgentAPI = {
   vizDataRef: React.MutableRefObject<VizData | null>;
   /** World-space target [x, y, z] the agent should move toward. Null = no command. */
   commandTargetRef: React.MutableRefObject<[number, number, number] | null>;
+  /** R3F renderer context, written from inside the Canvas. */
+  r3fRef: React.MutableRefObject<R3FContext | null>;
   /** Send the agent to a world-space target. Auto-enables the agent on first call. */
   issueCommand: (target: [number, number, number]) => void;
   /** Clear the current command (agent stops). */
   clearCommand: () => void;
+  /** Run SAM-3 segmentation on the current camera view. */
+  triggerDeepScan: (concepts?: string[]) => Promise<SegmentationResult>;
 };
 
 const AgentCtx = createContext<AgentAPI | null>(null);
@@ -35,6 +48,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [showViz, setShowViz] = useState(true);
   const vizDataRef = useRef<VizData | null>(null);
   const commandTargetRef = useRef<[number, number, number] | null>(null);
+  const r3fRef = useRef<R3FContext | null>(null);
   // Ref mirror of enabled to avoid stale closures in issueCommand
   const enabledRef = useRef(false);
   enabledRef.current = enabled;
@@ -58,6 +72,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     commandTargetRef.current = null;
   }, []);
 
+  const triggerDeepScan = useCallback(async (concepts?: string[]) => {
+    const ctx = r3fRef.current;
+    if (!ctx) throw new Error('R3F context not available — is the Canvas mounted?');
+    const result = await segmentScene(ctx.gl, ctx.scene, ctx.camera, concepts ?? DEFAULT_CONCEPTS);
+    console.log(
+      `[DeepScan] ${result.masks.length} masks:`,
+      result.masks.map((m) => `${m.label} (${(m.score * 100).toFixed(0)}%)`),
+    );
+    return result;
+  }, []);
+
   const api = React.useMemo<AgentAPI>(() => ({
     enabled,
     setEnabled: stableSetEnabled,
@@ -66,9 +91,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     config: DEFAULT_AGENT_CONFIG,
     vizDataRef,
     commandTargetRef,
+    r3fRef,
     issueCommand,
     clearCommand,
-  }), [enabled, stableSetEnabled, showViz, issueCommand, clearCommand]);
+    triggerDeepScan,
+  }), [enabled, stableSetEnabled, showViz, issueCommand, clearCommand, triggerDeepScan]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;
 }

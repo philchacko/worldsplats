@@ -59,3 +59,19 @@ export type FrontierCluster = {
   centroid: GridCoord;
   size: number;
 };
+
+/* ── Segmentation (SAM-3 via fal.ai) ── */
+
+export type SegmentationMask = {
+  label: string;
+  rle: string;
+  score: number;
+  box: [number, number, number, number]; // cx, cy, w, h (normalized)
+};
+
+export type SegmentationResult = {
+  masks: SegmentationMask[];
+  imageWidth: number;
+  imageHeight: number;
+  viewProjectionMatrix: number[]; // 16 floats, for future 3D splash
+};
