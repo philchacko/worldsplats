@@ -31,20 +31,27 @@ const ELEVATION_SIN = ELEVATION_DEG.map(d => Math.sin(d * Math.PI / 180));
  * and synthesises a single 2D result per azimuth:
  *
  *   1. The closest WALL hit (|normal.y| ≤ 0.7) caps the walkable distance.
- *   2. Floor hits (normal.y > 0.7) and misses extend the known-clear area.
- *   3. Ceiling hits (normal.y < -0.7) are ignored.
+ *   2. Floor hits (horizontal surface BELOW the sensor) and misses extend
+ *      the known-clear area.
+ *   3. Ceiling hits (horizontal surface ABOVE the sensor) are ignored.
  *
- * This ensures cells behind obstacles are never marked walkable — the wall
- * distance always wins over a floor hit that "flew over" the obstacle.
+ * Classification uses hit-point Y relative to the sensor, not normal direction,
+ * so it works correctly regardless of triangle winding / collider rotation.
+ *
+ * Each hit includes a worldY (floor height at the endpoint) for surface-following
+ * visualization. Also provides agentFloorY via a downward probe.
  *
  * Returns exactly `rayCount` LidarHit entries (one per azimuth).
- * Total raycasts = rayCount × len(ELEVATION_DEG).
+ * Total raycasts = rayCount × len(ELEVATION_DEG) + 1 (floor probe).
  */
 export class LidarScanner {
   private rayCount: number;
   private maxRange: number;
   private yOffset: number;
   private noiseStdDev: number;
+
+  /** Floor Y at the agent's position from the most recent scan. */
+  agentFloorY = 0;
 
   constructor(config: AgentConfig) {
     this.rayCount = config.lidarRayCount;
@@ -63,23 +70,38 @@ export class LidarScanner {
     const sensorY = posY + this.yOffset;
     const angleStep = (2 * Math.PI) / this.rayCount;
 
+    // ── Downward probe: find floor Y directly below the agent ─────────
+    // Start from just below the sensor to skip the ceiling.
+    const probeRay = new rapier.Ray(
+      { x: posX, y: sensorY, z: posZ },
+      { x: 0, y: -1, z: 0 },
+    );
+    const probeResult = world.castRayAndGetNormal(
+      probeRay, 10, false,
+      undefined, undefined, undefined, excludeBody,
+    );
+    this.agentFloorY = probeResult
+      ? sensorY - probeResult.toi
+      : posY;
+
+    // ── Per-azimuth vertical fan ──────────────────────────────────────
     for (let i = 0; i < this.rayCount; i++) {
       const azimuth = i * angleStep;
       const sinAz = Math.sin(azimuth);
       const cosAz = Math.cos(azimuth);
 
       // Per-azimuth aggregates across all elevation rays
-      let closestWallDist = this.maxRange; // horizontal distance to closest wall
+      let closestWallDist = this.maxRange;
       let wallHit = false;
-      let farthestClearDist = 0;           // farthest known-clear horizontal distance
+      let farthestClearDist = 0;
+      let floorY = this.agentFloorY; // default to agent's floor height
 
       for (let e = 0; e < ELEVATION_DEG.length; e++) {
         const cosEl = ELEVATION_COS[e];
         const sinEl = ELEVATION_SIN[e];
 
-        // Direction: azimuth rotates in XZ, elevation tilts in Y
         const dirX = sinAz * cosEl;
-        const dirY = sinEl; // negative for downward angles
+        const dirY = sinEl;
         const dirZ = cosAz * cosEl;
 
         const ray = new rapier.Ray(
@@ -94,28 +116,29 @@ export class LidarScanner {
 
         if (result && result.toi < this.maxRange) {
           const horizDist = result.toi * cosEl;
+          const hitY = sensorY + dirY * result.toi;
 
-          // Classify by surface normal
           if (Math.abs(result.normal.y) <= 0.7) {
-            // Wall / furniture — obstacle
+            // Wall / furniture — obstacle (roughly vertical surface)
             if (horizDist < closestWallDist) {
               closestWallDist = horizDist;
               wallHit = true;
             }
-          } else if (result.normal.y > 0) {
-            // Floor — walkable surface
-            farthestClearDist = Math.max(farthestClearDist, horizDist);
+          } else if (hitY < sensorY) {
+            // Horizontal surface BELOW sensor → floor (walkable)
+            // Uses position, not normal direction, so it's rotation-agnostic.
+            if (horizDist > farthestClearDist) {
+              farthestClearDist = horizDist;
+              floorY = hitY;
+            }
           }
-          // Ceiling hits (normal.y < -0.7) are ignored for 2D navigation
+          // Horizontal surface ABOVE sensor → ceiling → ignored
         } else {
-          // Miss — direction is clear to max range (horizontal projection)
           farthestClearDist = Math.max(farthestClearDist, this.maxRange * cosEl);
         }
       }
 
-      // Synthesise one hit per azimuth:
-      //   Wall found → effective distance = wall distance (caps everything)
-      //   No wall    → effective distance = farthest clear distance
+      // Synthesise one hit per azimuth
       let effectiveDist: number;
       if (wallHit) {
         effectiveDist = closestWallDist;
@@ -123,7 +146,6 @@ export class LidarScanner {
         effectiveDist = farthestClearDist > 0 ? farthestClearDist : this.maxRange;
       }
 
-      // Add noise to wall-hit distances
       if (this.noiseStdDev > 0 && wallHit) {
         effectiveDist = Math.max(0.1, effectiveDist + randn() * this.noiseStdDev);
       }
@@ -133,6 +155,7 @@ export class LidarScanner {
         distance: effectiveDist,
         worldX: posX + sinAz * effectiveDist,
         worldZ: posZ + cosAz * effectiveDist,
+        worldY: floorY,
         hit: wallHit,
       });
     }

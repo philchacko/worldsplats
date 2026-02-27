@@ -44,6 +44,7 @@ export type LidarHit = {
   distance: number;     // measured distance (with noise if enabled)
   worldX: number;       // hit point X in world space
   worldZ: number;       // hit point Z in world space
+  worldY: number;       // floor/surface Y at hit point (for height map)
   hit: boolean;         // true = ray hit surface, false = reached max range
 };
 

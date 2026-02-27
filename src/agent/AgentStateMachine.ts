@@ -117,10 +117,18 @@ export class AgentStateMachine {
     // Cast LiDAR rays and update grid
     const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
     this.lastLidarHits = hits;
+    const agentFloorY = this.scanner.agentFloorY;
+
+    const wallHits = hits.filter(h => h.hit).length;
+    const missHits = hits.filter(h => !h.hit).length;
+    console.log(`[Agent] SCAN pos=(${posX.toFixed(2)}, ${posY.toFixed(2)}, ${posZ.toFixed(2)}) floorY=${agentFloorY.toFixed(2)} wallHits=${wallHits} misses=${missHits}`);
 
     for (const hit of hits) {
-      this.grid.markRay(posX, posZ, hit.worldX, hit.worldZ, hit.hit);
+      this.grid.markRay(posX, posZ, agentFloorY, hit.worldX, hit.worldZ, hit.worldY, hit.hit);
     }
+
+    const s = this.grid.stats();
+    console.log(`[Agent] Grid after scan: empty=${s.empty} occupied=${s.occupied} total=${s.totalKnown}`);
 
     // Transition to planning
     this.state = AgentState.PLANNING;
@@ -130,6 +138,9 @@ export class AgentStateMachine {
   private tickPlanning(posX: number, posZ: number): AgentTickResult {
     // Find frontiers
     const clusters = this.frontierDetector.detect(this.grid);
+    const agentGrid = this.grid.worldToGrid(posX, posZ);
+    const agentCell = this.grid.get(agentGrid.gx, agentGrid.gz);
+    console.log(`[Agent] PLAN agentGrid=(${agentGrid.gx},${agentGrid.gz}) cellState=${agentCell} frontierClusters=${clusters.length} sizes=[${clusters.slice(0, 5).map(c => c.size).join(',')}]`);
 
     if (clusters.length === 0) {
       // No more frontiers — exploration complete
@@ -143,7 +154,6 @@ export class AgentStateMachine {
     // Try each cluster (largest first) until we find a reachable one.
     // Target the cluster cell farthest from the agent — this ensures we move
     // outward even when frontiers form a ring (whose centroid is the agent position).
-    const agentGrid = this.grid.worldToGrid(posX, posZ);
 
     for (const cluster of clusters) {
       // Pick the cell in the cluster farthest from the agent
@@ -164,6 +174,8 @@ export class AgentStateMachine {
         agentGrid,
         bestCell,
       );
+
+      console.log(`[Agent] A* from (${agentGrid.gx},${agentGrid.gz}) to (${bestCell.gx},${bestCell.gz}): ${pathResult ? `path len=${pathResult.worldPath.length}` : 'NO PATH'}`);
 
       if (pathResult && pathResult.worldPath.length > 1) {
         this.currentPath = pathResult.worldPath;
@@ -207,8 +219,9 @@ export class AgentStateMachine {
       this.scanTimer = 0;
       const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
       this.lastLidarHits = hits;
+      const agentFloorY = this.scanner.agentFloorY;
       for (const hit of hits) {
-        this.grid.markRay(posX, posZ, hit.worldX, hit.worldZ, hit.hit);
+        this.grid.markRay(posX, posZ, agentFloorY, hit.worldX, hit.worldZ, hit.worldY, hit.hit);
       }
     }
 

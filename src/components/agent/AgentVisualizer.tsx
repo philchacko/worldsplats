@@ -28,14 +28,20 @@ const _color = new THREE.Color();
  * and agent marker as Three.js objects inside the R3F Canvas.
  */
 export default function AgentVisualizer() {
-  const { enabled, showViz, vizDataRef } = useAgent();
+  const { enabled, showViz, vizDataRef, config } = useAgent();
 
   const gridRef = useRef<THREE.InstancedMesh>(null);
   const lidarRef = useRef<THREE.LineSegments>(null);
   const agentRef = useRef<THREE.Mesh>(null);
 
+  // Cell plane size matches grid cellSize (with small gap for visibility)
+  const cellVisualSize = config.cellSize * 0.9;
+
   // Pre-allocated geometries and materials
-  const gridGeom = useMemo(() => new THREE.PlaneGeometry(0.45, 0.45), []);
+  const gridGeom = useMemo(
+    () => new THREE.PlaneGeometry(cellVisualSize, cellVisualSize),
+    [cellVisualSize],
+  );
   const gridMat = useMemo(() => new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
@@ -68,7 +74,6 @@ export default function AgentVisualizer() {
 
     const { agentPos, grid, lidarHits, currentPath } = data;
     const agentY = agentPos[1];
-    const vizY = agentY - 0.3; // slightly below agent feet
 
     // ── Agent marker ──
     if (agentRef.current) {
@@ -94,7 +99,9 @@ export default function AgentVisualizer() {
           if (cell === CellState.UNKNOWN) continue;
 
           const { wx, wz } = grid.gridToWorld(gx, gz);
-          _dummy.position.set(wx, vizY, wz);
+          // Use per-cell height from height map + small offset to sit on surface
+          const cellY = grid.getHeight(gx, gz) + 0.02;
+          _dummy.position.set(wx, cellY, wz);
           _dummy.rotation.set(-Math.PI / 2, 0, 0); // lie flat on XZ plane
           _dummy.updateMatrix();
           inst.setMatrixAt(count, _dummy.matrix);
@@ -123,9 +130,9 @@ export default function AgentVisualizer() {
         arr[idx++] = agentPos[0];
         arr[idx++] = rayY;
         arr[idx++] = agentPos[2];
-        // End point (hit position)
+        // End point (hit position — use floor Y for endpoint)
         arr[idx++] = hit.worldX;
-        arr[idx++] = rayY;
+        arr[idx++] = hit.worldY;
         arr[idx++] = hit.worldZ;
       }
 
@@ -139,12 +146,14 @@ export default function AgentVisualizer() {
       const positions = pathGeom.getAttribute('position') as THREE.BufferAttribute;
       const arr = positions.array as Float32Array;
       let idx = 0;
-      const pathY = vizY + 0.1;
 
       for (let i = 0; i < currentPath.length && idx < MAX_PATH_POINTS * 3; i++) {
-        arr[idx++] = currentPath[i][0];
+        const [px, pz] = currentPath[i];
+        const pathCell = grid.worldToGrid(px, pz);
+        const pathY = grid.getHeight(pathCell.gx, pathCell.gz) + 0.05;
+        arr[idx++] = px;
         arr[idx++] = pathY;
-        arr[idx++] = currentPath[i][1];
+        arr[idx++] = pz;
       }
 
       pathGeom.setDrawRange(0, idx / 3);

@@ -106,7 +106,10 @@ export function RapierProvider({
         const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
         envBodyRef.current = body;
         const created: RAPIER.Collider[] = [];
-        // Apply the same rotation as the visual splat mesh so physics match visuals
+        // Apply the same rotation as the visual splat so the collider aligns.
+        // NOTE: This rotates triangle normals too (e.g. a 180° X-flip makes
+        // floor normals point downward). The LiDAR scanner handles this by
+        // classifying floor/ceiling via hit position, not normal direction.
         if (resolvedRotation) {
           gltf.scene.quaternion.set(
             resolvedRotation[0], resolvedRotation[1],
