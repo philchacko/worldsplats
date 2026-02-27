@@ -1,11 +1,27 @@
 'use client';
 
 import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAgent } from '@/providers/agent';
 import { CellState, SemanticLabel } from '@/agent/types';
+
+/** Human-readable names for semantic labels. */
+const LABEL_NAMES: Record<number, string> = {
+  [SemanticLabel.FLOOR]: 'floor',
+  [SemanticLabel.WALL]: 'wall',
+  [SemanticLabel.CEILING]: 'ceiling',
+  [SemanticLabel.DOOR]: 'door',
+  [SemanticLabel.WINDOW]: 'window',
+  [SemanticLabel.SOFA]: 'sofa',
+  [SemanticLabel.TABLE]: 'table',
+  [SemanticLabel.CHAIR]: 'chair',
+  [SemanticLabel.RUG]: 'rug',
+  [SemanticLabel.LAMP]: 'lamp',
+  [SemanticLabel.BOOKSHELF]: 'bookshelf',
+  [SemanticLabel.PAINTING]: 'painting',
+};
 
 // Curator model
 const CURATOR_MODEL_PATH = '/characters/thecurator.glb';
@@ -68,6 +84,7 @@ const RENDER_RADIUS = 100;
 
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
+const _reticleDir = new THREE.Vector3();
 
 /**
  * Create a hollow-square (outline) geometry for a single cell.
@@ -107,7 +124,8 @@ function makeOutlineGeom(size: number, borderWidth: number): THREE.ShapeGeometry
  *  - LiDAR rays + agent marker → same as before
  */
 export default function AgentVisualizer() {
-  const { enabled, showViz, vizDataRef, config } = useAgent();
+  const { enabled, vizDataRef, config, hoveredLabelRef } = useAgent();
+  const { camera } = useThree();
 
   const outlineRef = useRef<THREE.InstancedMesh>(null);
   const semanticRef = useRef<THREE.InstancedMesh>(null);
@@ -189,14 +207,14 @@ export default function AgentVisualizer() {
   }, []);
 
   useFrame((_, delta) => {
-    if (!enabled || !showViz) return;
+    if (!enabled) return;
     const data = vizDataRef.current;
     if (!data) return;
 
     const { agentPos, grid, lidarHits, currentPath } = data;
     const agentY = agentPos[1];
 
-    // ── Curator model ──
+    // ── Curator model (always updates when enabled) ──
     if (curatorRef.current) {
       bobTimeRef.current += delta;
       const t = bobTimeRef.current;
@@ -233,7 +251,7 @@ export default function AgentVisualizer() {
       prevPosRef.current = [agentPos[0], agentPos[2]];
     }
 
-    // ── Grid cells ──
+    // ── Grid, rays, path ──
     const outlineInst = outlineRef.current;
     const semInst = semanticRef.current;
 
@@ -359,35 +377,38 @@ export default function AgentVisualizer() {
     } else {
       pathGeom.setDrawRange(0, 0);
     }
+
+    // ── Semantic label under reticle (center of screen) ──
+    camera.getWorldDirection(_reticleDir);
+    const ro = camera.position;
+    // Project a ray forward from the camera and check which grid cell it hits on the floor plane
+    // We use the grid's height data to intersect — assume roughly flat ground at agent Y level.
+    const floorY = agentY + CURATOR_Y_OFFSET; // approximate floor
+    if (Math.abs(_reticleDir.y) > 0.001) {
+      const t = (floorY - ro.y) / _reticleDir.y;
+      if (t > 0 && t < 50) {
+        const hitX = ro.x + _reticleDir.x * t;
+        const hitZ = ro.z + _reticleDir.z * t;
+        const gc = grid.worldToGrid(hitX, hitZ);
+        if (grid.inBounds(gc.gx, gc.gz)) {
+          const sem = grid.getSemantic(gc.gx, gc.gz);
+          hoveredLabelRef.current = (sem !== SemanticLabel.NONE && LABEL_NAMES[sem]) || null;
+        } else {
+          hoveredLabelRef.current = null;
+        }
+      } else {
+        hoveredLabelRef.current = null;
+      }
+    } else {
+      hoveredLabelRef.current = null;
+    }
   });
 
-  if (!enabled || !showViz) return null;
+  if (!enabled) return null;
 
   return (
     <group>
-      {/* Occupied unlabeled cells — dim red outlines (walls/obstacles) */}
-      <instancedMesh
-        ref={outlineRef}
-        args={[outlineGeom, outlineMat, MAX_OUTLINE_INSTANCES]}
-        frustumCulled={false}
-      />
-
-      {/* Semantic labeled cells — bright colored outlines */}
-      <instancedMesh
-        ref={semanticRef}
-        args={[semanticGeom, semanticMat, MAX_SEMANTIC_INSTANCES]}
-        frustumCulled={false}
-      />
-
-      {/* LiDAR rays */}
-      <lineSegments ref={lidarRef} geometry={lidarGeom} frustumCulled={false}>
-        <lineBasicMaterial color={COLOR_LIDAR} transparent opacity={0.4} depthWrite={false} />
-      </lineSegments>
-
-      {/* Planned path */}
-      <primitive object={pathLine} frustumCulled={false} />
-
-      {/* The Curator */}
+      {/* The Curator — always visible when enabled */}
       <group ref={curatorRef}>
         {/* Fill light — illuminates the model from above-front so it's visible in any scene */}
         <pointLight intensity={FILL_LIGHT_INTENSITY} distance={3} decay={2} position={[0, 1, 0.5]} />
@@ -404,6 +425,22 @@ export default function AgentVisualizer() {
           <primitive object={curatorModel} />
         </group>
       </group>
+
+      {/* Grid, rays, path */}
+      <instancedMesh
+        ref={outlineRef}
+        args={[outlineGeom, outlineMat, MAX_OUTLINE_INSTANCES]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={semanticRef}
+        args={[semanticGeom, semanticMat, MAX_SEMANTIC_INSTANCES]}
+        frustumCulled={false}
+      />
+      <lineSegments ref={lidarRef} geometry={lidarGeom} frustumCulled={false}>
+        <lineBasicMaterial color={COLOR_LIDAR} transparent opacity={0.4} depthWrite={false} />
+      </lineSegments>
+      <primitive object={pathLine} frustumCulled={false} />
     </group>
   );
 }

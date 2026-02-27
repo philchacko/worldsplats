@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { usePointerLock } from '@/providers/pointerLock';
-import { useAgent } from '@/providers/agent';
 import * as THREE from 'three';
 import { useRapierWorld, RapierRigidBody } from '@/physics';
 
@@ -33,16 +32,8 @@ export default function PlayerController({
   const { camera } = useThree();
   const { world, rapier, playerBody } = useRapierWorld();
   const { isLocked } = usePointerLock();
-  const { issueCommand, showViz, setShowViz } = useAgent();
   const bodyRef = useRef<RapierRigidBody | null>(playerBody);
   const key = useRef<Record<string, boolean>>({});
-  // Refs for values needed inside the keydown handler (which has [] deps)
-  const agentRefs = useRef({ issueCommand, showViz, setShowViz });
-  agentRefs.current = { issueCommand, showViz, setShowViz };
-  const rapierRef = useRef(rapier);
-  rapierRef.current = rapier;
-  const worldRef = useRef(world);
-  worldRef.current = world;
   const jumpRequested = useRef(false);
   const forward = useMemo(() => new THREE.Vector3(), []);
   const right = useMemo(() => new THREE.Vector3(), []);
@@ -74,43 +65,6 @@ export default function PlayerController({
       if (e.code === 'Space') {
         jumpRequested.current = true;
         e.preventDefault();
-      }
-      // F — Command agent: move to where the player is looking
-      if (e.code === 'KeyF' && rapierRef.current && worldRef.current) {
-        const r = rapierRef.current;
-        const w = worldRef.current;
-        const dir = new THREE.Vector3();
-        camera.getWorldDirection(dir).normalize();
-        const origin = camera.position;
-
-        const ray = new r.Ray(
-          { x: origin.x, y: origin.y, z: origin.z },
-          { x: dir.x, y: dir.y, z: dir.z },
-        );
-        const hit = w.castRayAndGetNormal(ray, 50, false);
-
-        let target: [number, number, number];
-        if (hit && hit.toi < 50) {
-          target = [
-            origin.x + dir.x * hit.toi,
-            origin.y + dir.y * hit.toi,
-            origin.z + dir.z * hit.toi,
-          ];
-        } else {
-          // Fallback: 10m ahead on XZ plane
-          const flat = new THREE.Vector3(dir.x, 0, dir.z).normalize();
-          target = [
-            origin.x + flat.x * 10,
-            origin.y,
-            origin.z + flat.z * 10,
-          ];
-        }
-        agentRefs.current.issueCommand(target);
-      }
-      // M — Toggle agent map visualization
-      if (e.code === 'KeyM') {
-        const a = agentRefs.current;
-        a.setShowViz(!a.showViz);
       }
     };
     const up = (e: KeyboardEvent) => { key.current[e.code] = false; };

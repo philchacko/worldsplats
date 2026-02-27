@@ -10,13 +10,12 @@ import { Button } from '@/components/hud/Button';
  * Shows start/stop, visualization toggle, and live stats.
  */
 export default function AgentHud() {
-  const { enabled, setEnabled, showViz, setShowViz, vizDataRef, triggerDeepScan, lastSplashRef } = useAgent();
+  const { enabled, setEnabled, vizDataRef, triggerDeepScan, lastSplashRef } = useAgent();
   const [stats, setStats] = useState({ state: AgentState.IDLE, explored: 0, total: 0, labeled: 0 });
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
 
   const handleToggle = useCallback(() => setEnabled(!enabled), [enabled, setEnabled]);
-  const handleViz = useCallback(() => setShowViz(!showViz), [showViz, setShowViz]);
   const handleDeepScan = useCallback(async () => {
     setScanning(true);
     setScanResult(null);
@@ -56,13 +55,6 @@ export default function AgentHud() {
           label={enabled ? 'Stop Agent' : 'Start Agent'}
           className="px-3 py-1.5 rounded border border-zinc-600 bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs"
         />
-        {enabled && (
-          <Button
-            onClick={handleViz}
-            label={showViz ? 'Hide Map' : 'Show Map'}
-            className="px-3 py-1.5 rounded border border-zinc-600 bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs"
-          />
-        )}
       </div>
 
       <Button
