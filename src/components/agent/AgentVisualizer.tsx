@@ -17,11 +17,15 @@ const BOB_AMPLITUDE = 0.06;
 const BOB_SPEED = 2.0;
 /** How quickly the model rotates to face its heading (radians/sec blend factor). */
 const HEADING_LERP = 6.0;
+/** Yaw correction so the model's eye faces +Z (forward) at heading 0. */
+const MODEL_YAW_OFFSET = -Math.PI / 2;
 /** Intensity of the fill light illuminating the Curator. */
-const FILL_LIGHT_INTENSITY = 4.0;
+const FILL_LIGHT_INTENSITY = 3.0;
 /** Intensity of the eye glow point light. Animate this later for speech. */
-const EYE_LIGHT_INTENSITY = 2.5;
+const EYE_LIGHT_INTENSITY = 4.5;
 const EYE_LIGHT_COLOR = 0x88ccff;
+/** Emissive boost so the model is self-lit from all angles (0 = none, 1 = full). */
+const EMISSIVE_INTENSITY = 0.35;
 
 // Base colors
 const COLOR_OCCUPIED = new THREE.Color(0xff4444);
@@ -109,9 +113,25 @@ export default function AgentVisualizer() {
   const headingRef = useRef(0); // current smoothed Y rotation
   const bobTimeRef = useRef(0);
 
-  // Load the Curator model
+  // Load the Curator model and apply emissive boost for even illumination
   const { scene: curatorScene } = useGLTF(CURATOR_MODEL_PATH);
-  const curatorModel = useMemo(() => curatorScene.clone(true), [curatorScene]);
+  const curatorModel = useMemo(() => {
+    const clone = curatorScene.clone(true);
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        if (mat.isMeshStandardMaterial) {
+          mesh.material = mat.clone();
+          const m = mesh.material as THREE.MeshStandardMaterial;
+          m.emissive.copy(m.color);
+          m.emissiveMap = m.map;
+          m.emissiveIntensity = EMISSIVE_INTENSITY;
+        }
+      }
+    });
+    return clone;
+  }, [curatorScene]);
 
   const cellVisualSize = config.cellSize * 0.95;
   const borderWidth = config.cellSize * 0.12;
@@ -271,18 +291,22 @@ export default function AgentVisualizer() {
       }
     }
 
-    // ── LiDAR rays ──
+    // ── LiDAR rays (emanate from the Curator's eye) ──
     if (lidarRef.current && lidarHits) {
       const positions = lidarGeom.getAttribute('position') as THREE.BufferAttribute;
       const arr = positions.array as Float32Array;
       let idx = 0;
-      const rayY = agentY + 0.8;
+
+      // Use the Curator's X/Z but a fixed Y (no bob) so rays don't wobble
+      const eyeX = agentPos[0];
+      const eyeY = agentY + CURATOR_Y_OFFSET;
+      const eyeZ = agentPos[2];
 
       for (let i = 0; i < lidarHits.length && idx < MAX_LIDAR_POINTS * 3; i++) {
         const hit = lidarHits[i];
-        arr[idx++] = agentPos[0];
-        arr[idx++] = rayY;
-        arr[idx++] = agentPos[2];
+        arr[idx++] = eyeX;
+        arr[idx++] = eyeY;
+        arr[idx++] = eyeZ;
         arr[idx++] = hit.worldX;
         arr[idx++] = hit.worldY;
         arr[idx++] = hit.worldZ;
@@ -354,7 +378,7 @@ export default function AgentVisualizer() {
           decay={2}
           position={[0, 0.2, 0.4]}
         />
-        <group scale={CURATOR_SCALE}>
+        <group scale={CURATOR_SCALE} rotation-y={MODEL_YAW_OFFSET}>
           <primitive object={curatorModel} />
         </group>
       </group>
