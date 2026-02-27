@@ -61,17 +61,16 @@ export class AgentStateMachine {
     rapier: typeof RAPIER,
     world: RAPIER.World,
     posX: number, posY: number, posZ: number,
-    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     switch (this.state) {
       case AgentState.IDLE:
         return this.tickIdle();
       case AgentState.SCANNING:
-        return this.tickScanning(rapier, world, posX, posY, posZ, excludeBody);
+        return this.tickScanning(rapier, world, posX, posY, posZ);
       case AgentState.PLANNING:
         return this.tickPlanning(posX, posZ);
       case AgentState.MOVING:
-        return this.tickMoving(dt, rapier, world, posX, posY, posZ, excludeBody);
+        return this.tickMoving(dt, rapier, world, posX, posY, posZ);
       default:
         return this.result(0, 0);
     }
@@ -112,23 +111,15 @@ export class AgentStateMachine {
   private tickScanning(
     rapier: typeof RAPIER, world: RAPIER.World,
     posX: number, posY: number, posZ: number,
-    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     // Cast LiDAR rays and update grid
-    const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
+    const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
     this.lastLidarHits = hits;
     const agentFloorY = this.scanner.agentFloorY;
-
-    const wallHits = hits.filter(h => h.hit).length;
-    const missHits = hits.filter(h => !h.hit).length;
-    console.log(`[Agent] SCAN pos=(${posX.toFixed(2)}, ${posY.toFixed(2)}, ${posZ.toFixed(2)}) floorY=${agentFloorY.toFixed(2)} wallHits=${wallHits} misses=${missHits}`);
 
     for (const hit of hits) {
       this.grid.markRay(posX, posZ, agentFloorY, hit.worldX, hit.worldZ, hit.worldY, hit.hit);
     }
-
-    const s = this.grid.stats();
-    console.log(`[Agent] Grid after scan: empty=${s.empty} occupied=${s.occupied} total=${s.totalKnown}`);
 
     // Transition to planning
     this.state = AgentState.PLANNING;
@@ -139,12 +130,9 @@ export class AgentStateMachine {
     // Find frontiers
     const clusters = this.frontierDetector.detect(this.grid);
     const agentGrid = this.grid.worldToGrid(posX, posZ);
-    const agentCell = this.grid.get(agentGrid.gx, agentGrid.gz);
-    console.log(`[Agent] PLAN agentGrid=(${agentGrid.gx},${agentGrid.gz}) cellState=${agentCell} frontierClusters=${clusters.length} sizes=[${clusters.slice(0, 5).map(c => c.size).join(',')}]`);
 
     if (clusters.length === 0) {
       // No more frontiers — exploration complete
-      console.log('[Agent] Exploration complete — no frontiers remain');
       this.state = AgentState.IDLE;
       this.currentPath = null;
       this.targetFrontier = null;
@@ -175,8 +163,6 @@ export class AgentStateMachine {
         bestCell,
       );
 
-      console.log(`[Agent] A* from (${agentGrid.gx},${agentGrid.gz}) to (${bestCell.gx},${bestCell.gz}): ${pathResult ? `path len=${pathResult.worldPath.length}` : 'NO PATH'}`);
-
       if (pathResult && pathResult.worldPath.length > 1) {
         this.currentPath = pathResult.worldPath;
         this.pathIndex = 1; // skip the start cell (we're already there)
@@ -195,7 +181,6 @@ export class AgentStateMachine {
     // All frontiers are unreachable — try again next scan cycle
     this.planFailCount++;
     if (this.planFailCount >= AgentStateMachine.MAX_PLAN_FAILS) {
-      console.log('[Agent] Too many planning failures — stopping');
       this.state = AgentState.IDLE;
       this.currentPath = null;
       this.targetFrontier = null;
@@ -211,13 +196,12 @@ export class AgentStateMachine {
     dt: number,
     rapier: typeof RAPIER, world: RAPIER.World,
     posX: number, posY: number, posZ: number,
-    excludeBody?: RAPIER.RigidBody,
   ): AgentTickResult {
     // Periodic re-scan while moving
     this.scanTimer += dt;
     if (this.scanTimer >= this.config.scanInterval) {
       this.scanTimer = 0;
-      const hits = this.scanner.scan(rapier, world, posX, posY, posZ, excludeBody);
+      const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
       this.lastLidarHits = hits;
       const agentFloorY = this.scanner.agentFloorY;
       for (const hit of hits) {
@@ -232,7 +216,6 @@ export class AgentStateMachine {
       const dz = posZ - this.lastPos[1];
       const moved = Math.sqrt(dx * dx + dz * dz);
       if (moved < AgentStateMachine.STUCK_THRESHOLD) {
-        console.log('[Agent] Stuck — replanning');
         this.currentPath = null;
         this.state = AgentState.SCANNING;
         return this.result(0, 0);

@@ -64,7 +64,6 @@ export class LidarScanner {
     rapier: typeof RAPIER,
     world: RAPIER.World,
     posX: number, posY: number, posZ: number,
-    excludeBody?: RAPIER.RigidBody,
   ): LidarHit[] {
     const hits: LidarHit[] = [];
     const sensorY = posY + this.yOffset;
@@ -78,7 +77,7 @@ export class LidarScanner {
     );
     const probeResult = world.castRayAndGetNormal(
       probeRay, 10, false,
-      undefined, undefined, undefined, excludeBody,
+      undefined, undefined, undefined, undefined,
     );
     this.agentFloorY = probeResult
       ? sensorY - probeResult.toi
@@ -111,7 +110,7 @@ export class LidarScanner {
 
         const result = world.castRayAndGetNormal(
           ray, this.maxRange, false,
-          undefined, undefined, undefined, excludeBody,
+          undefined, undefined, undefined, undefined,
         );
 
         if (result && result.toi < this.maxRange) {

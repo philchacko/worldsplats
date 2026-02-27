@@ -2,36 +2,42 @@
 
 import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type * as RAPIER from '@dimforge/rapier3d-compat';
+import * as THREE from 'three';
 import { useRapierWorld } from '@/physics';
 import { useAgent } from '@/providers/agent';
-import { AgentStateMachine } from '@/agent/AgentStateMachine';
+import { AgentState } from '@/agent/types';
+import { LidarScanner } from '@/agent/LidarScanner';
+import { OccupancyGrid } from '@/agent/OccupancyGrid';
 
 /**
- * R3F component that drives the autonomous exploration agent.
- * Creates its own Rapier rigid body and runs the state machine per frame.
- * Returns null (invisible) — visualization is handled by AgentVisualizer.
+ * Drives the agent companion. Moves directly toward a commanded target
+ * (set by the player pressing F) while scanning the environment with
+ * LiDAR to build an occupancy grid. No autonomous pathfinding — just
+ * straight-line movement + SLAM.
  */
 export default function AgentController() {
   const { world, rapier, playerBody } = useRapierWorld();
-  const { enabled, config, vizDataRef } = useAgent();
-  const bodyRef = useRef<RAPIER.RigidBody | null>(null);
-  const smRef = useRef<AgentStateMachine | null>(null);
+  const { enabled, config, vizDataRef, commandTargetRef, clearCommand } = useAgent();
 
-  // Create/destroy agent rigid body based on enabled state
+  const posRef = useRef(new THREE.Vector3());
+  const scannerRef = useRef<LidarScanner | null>(null);
+  const gridRef = useRef<OccupancyGrid | null>(null);
+  const scanTimerRef = useRef(0);
+  const stateRef = useRef<AgentState>(AgentState.IDLE);
+  const initializedRef = useRef(false);
+
+  // Initialize/reset when enabled state changes
   useEffect(() => {
     if (!enabled || !world || !rapier) {
-      // Clean up agent body
-      if (bodyRef.current && world) {
-        try { world.removeRigidBody(bodyRef.current); } catch { /* already removed */ }
-        bodyRef.current = null;
-      }
-      smRef.current = null;
+      scannerRef.current = null;
+      gridRef.current = null;
       vizDataRef.current = null;
+      initializedRef.current = false;
+      stateRef.current = AgentState.IDLE;
       return;
     }
 
-    // Spawn agent at the player's current position
+    // Spawn at player position
     let spawnX = 0, spawnY = 1.4, spawnZ = 0;
     if (playerBody) {
       const p = playerBody.translation();
@@ -40,55 +46,78 @@ export default function AgentController() {
       spawnZ = p.z;
     }
 
-    // Create kinematic body — "ghost" mode: the agent passes through all
-    // geometry so pathfinding can be tested independently of physics collisions.
-    // Raycasts still detect the environment colliders for mapping.
-    const bodyDesc = rapier
-      .RigidBodyDesc.kinematicVelocityBased()
-      .setTranslation(spawnX, spawnY, spawnZ);
-    const body = world.createRigidBody(bodyDesc);
-    // No collider — ghost agent doesn't need one.
-    bodyRef.current = body;
+    posRef.current.set(spawnX, spawnY, spawnZ);
+    scannerRef.current = new LidarScanner(config);
 
-    // Initialize state machine
-    const sm = new AgentStateMachine(config, spawnX, spawnZ);
-    sm.start();
-    smRef.current = sm;
+    // Center grid on spawn
+    const halfW = (config.gridWidth * config.cellSize) / 2;
+    const halfH = (config.gridHeight * config.cellSize) / 2;
+    gridRef.current = new OccupancyGrid(config, spawnX - halfW, spawnZ - halfH);
+
+    scanTimerRef.current = config.scanInterval; // trigger immediate first scan
+    stateRef.current = AgentState.IDLE;
+    initializedRef.current = true;
 
     return () => {
-      if (bodyRef.current && world) {
-        try { world.removeRigidBody(bodyRef.current); } catch { /* ok */ }
-        bodyRef.current = null;
-      }
-      smRef.current = null;
+      scannerRef.current = null;
+      gridRef.current = null;
+      initializedRef.current = false;
     };
   }, [enabled, world, rapier, playerBody, config, vizDataRef]);
 
-  // Per-frame: run state machine and apply velocity
   useFrame((_, delta) => {
-    if (!enabled || !bodyRef.current || !smRef.current || !rapier || !world) return;
+    if (!enabled || !initializedRef.current || !rapier || !world) return;
+    const scanner = scannerRef.current;
+    const grid = gridRef.current;
+    if (!scanner || !grid) return;
 
-    const pos = bodyRef.current.translation();
-    const result = smRef.current.tick(
-      delta, rapier, world,
-      pos.x, pos.y, pos.z,
-      bodyRef.current, // exclude agent's own body from LiDAR raycasts
-    );
+    const pos = posRef.current;
+    const target = commandTargetRef.current;
 
-    // Apply horizontal velocity only — kinematic ghost floats at constant height
-    bodyRef.current.setLinvel(
-      { x: result.velocityX, y: 0, z: result.velocityZ },
-      true,
-    );
+    // ── Movement toward command target ──
+    if (target) {
+      const dx = target[0] - pos.x;
+      const dz = target[2] - pos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
 
-    // Write viz data for AgentVisualizer (ref-based, no React re-render)
-    vizDataRef.current = {
-      agentPos: [pos.x, pos.y, pos.z],
-      state: result.state,
-      lidarHits: result.lidarHits,
-      currentPath: result.currentPath,
-      grid: smRef.current.grid,
-    };
+      if (dist < config.arrivalThreshold) {
+        // Arrived
+        clearCommand();
+        stateRef.current = AgentState.IDLE;
+      } else {
+        stateRef.current = AgentState.MOVING;
+        const step = Math.min(config.moveSpeed * delta, dist); // don't overshoot
+        pos.x += (dx / dist) * step;
+        pos.z += (dz / dist) * step;
+      }
+    } else if (stateRef.current === AgentState.MOVING) {
+      stateRef.current = AgentState.IDLE;
+    }
+
+    // ── Periodic LiDAR scanning ──
+    scanTimerRef.current += delta;
+    if (scanTimerRef.current >= config.scanInterval) {
+      scanTimerRef.current = 0;
+      const hits = scanner.scan(rapier, world, pos.x, pos.y, pos.z);
+      const agentFloorY = scanner.agentFloorY;
+
+      for (const hit of hits) {
+        grid.markRay(pos.x, pos.z, agentFloorY, hit.worldX, hit.worldZ, hit.worldY, hit.hit);
+      }
+
+      // Write viz data with fresh scan
+      vizDataRef.current = {
+        agentPos: [pos.x, pos.y, pos.z],
+        state: stateRef.current,
+        lidarHits: hits,
+        currentPath: null,
+        grid,
+      };
+    } else if (vizDataRef.current) {
+      // Update position every frame even without a scan
+      vizDataRef.current.agentPos = [pos.x, pos.y, pos.z];
+      vizDataRef.current.state = stateRef.current;
+    }
   });
 
   return null;

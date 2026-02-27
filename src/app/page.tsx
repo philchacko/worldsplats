@@ -32,7 +32,6 @@ import WorldScene from "@/components/scene/WorldScene";
 import { PointerLockProvider, usePointerLock } from '@/providers/pointerLock';
 import { AudioProvider, useAudio } from '@/providers/audio';
 import { AgentProvider } from '@/providers/agent';
-import AgentHud from '@/components/agent/AgentHud';
 //const WorldScene = dynamic(() => import('@/components/scene/WorldScene'), { ssr: false });
 type ShootHandle = { shoot: () => void; clear: () => void; };
 import { WORLDS, OBJECTS, ASSET_MODE, type WorldDef, type ObjectDef } from '@/data/presets';
@@ -303,10 +302,6 @@ function PageContent() {
             isLoading={isLoading || remoteLoading}
             loadError={loadError}
           />
-        </div>
-        {/* Agent controls - bottom-left */}
-        <div className="mt-auto p-4">
-          <AgentHud />
         </div>
       </div>
 
