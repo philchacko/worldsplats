@@ -1,6 +1,6 @@
 // Audio configuration
 export const AUDIO_CONFIG = {
-  MUSIC_VOLUME: 0.15, // 0.0 to 1.0
+  MUSIC_VOLUME: 0.10, // 0.0 to 1.0
   MUSIC_FILES: {
     SUNLIT_GROVE: '/music/Sunlit_Grove_Ambient.mp3',
   },
