@@ -286,7 +286,7 @@ function PageContent() {
   return (
     <div className="relative h-dvh w-dvw bg-black text-white font-sans">
       {/* 3D Canvas - fills entire viewport */}
-      <RapierProvider colliderUrl={world.colliderUrl} colliderRotation={world.colliderUrl ? world.quaternion : undefined} colliderScale={world.colliderUrl ? world.scale : undefined} spawnPosition={world.spawn}>
+      <RapierProvider colliderUrl={world.colliderUrl} colliderRotation={world.colliderUrl ? (world.colliderQuaternion ?? world.quaternion) : undefined} colliderScale={world.colliderUrl ? world.scale : undefined} spawnPosition={world.spawn}>
         <WorldScene
           world={world}
           object={object}

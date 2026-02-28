@@ -45,6 +45,7 @@ export type WorldDef = {
   musicUrl?: string;        // optional — worlds from DB may not have music
   imageCredit?: string;
   colliderUrl?: string;    // per-world collider .glb — defaults to splat URL with .glb extension
+  colliderQuaternion?: [number, number, number, number]; // override rotation for collider only (x,y,z,w) — use when collider GLB was exported in a different orientation than the splat
   position?: [number, number, number];
   quaternion?: [number, number, number, number]; // x,y,z,w
   scale?: number;
@@ -86,12 +87,37 @@ export const WORLDS: WorldDef[] = [
     guide: "The scene is a luxurious, retro-inspired living room in a tropical setting, rendered with a realistic style that exudes a playful yet sophisticated tone. The vibrant colors and mid-century modern furnishings create an inviting and lively atmosphere within this expansive indoor-outdoor space. The floor is composed of a terrazzo pattern featuring shades of green, coral, and white, flowing seamlessly throughout the room and extending to the surrounding areas, hinting at a continuous design motif. A large, curved teal sofa with coral pillows serves as a prominent seating arrangement, facing a substantial, square coffee table in a matching teal hue. This table, made of a polished, lacquered material, holds various decorative objects, including clear glass bowls and books. Across from the teal sofa, two curved coral armchairs with teal throw pillows flank a similar, though smaller, curved coral sofa, creating a cohesive and symmetrical seating arrangement. A tall, wooden bar cabinet, with shelves filled with colorful liquor bottles and glassware, stands against the far wall, illuminated by internal lighting. Adjacent to the bar, a gallery wall displays an array of framed photographs, capturing moments of leisure and travel, arranged in a grid pattern. Large glass sliding doors and expansive windows dominate one entire wall, offering an unobstructed view of a lush, tropical garden with a swimming pool and additional outdoor seating, suggesting a close integration with nature. Above, three large, organic-shaped pendant lights hang from the high ceiling, casting a warm glow and complementing the room's artful design. ",
   },
   {
+    id: 'oval-office',
+    name: 'Oval Office',
+    url: assetUrl('/worlds/Oval Office Elegant Historic Interior.spz', 'worlds/Oval Office Elegant Historic Interior.spz'),
+    imageUrl: '/worlds/Oval Office Elegant Historic Interior_prompt.jpg',
+    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
+    colliderUrl: assetUrl('/worlds/Oval Office Elegant Historic Interior_collider.glb', 'worlds/Oval Office Elegant Historic Interior_collider.glb'),
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+    guide: "The scene is a historically furnished oval office, presented in a realistic style that exudes dignity and tradition. The overall tone is formal and distinguished, reflecting a space of significant importance and authority. The room is characterized by its curved walls, covered in striped wallpaper in tones of cream and beige, and adorned with white crown molding near the ceiling. A grand wooden desk, intricately carved, stands prominently in the center, facing a series of tall windows draped with rich red curtains, which filter bright natural light into the space. An American flag and another flag, presumably the Presidential Seal flag, stand upright beside the desk near the windows. On one side of the room, a large wooden chest of drawers supports a vibrant floral arrangement and two framed landscape paintings, one depicting a red barn and the other a white house in a green field. Opposite this arrangement, an elegant wooden bookshelf, built into the curved wall with a shell-like arch at the top, is filled with books and various decorative items. A bronze sculpture of a cowboy on horseback rests on a smaller wooden credenza positioned in front of the bookshelf. Two plush, light brown sofas with numerous cushions are placed symmetrically in the foreground, facing the central desk, creating a comfortable seating area. A marble-topped coffee table, laden with a bowl of fresh fruit, sits between the sofas, accentuating the room's formal yet welcoming ambiance. The flooring features a large, light-colored rug with intricate circular patterns, complementing the traditional decor. Wooden chairs are positioned around the desk, offering additional seating."
+  },
+  {
+    id: 'underwater',
+    name: 'Underwater Living',
+    imageUrl: '/worlds/Underwater Living Space Futuristic Design_prompt.jpg',
+    url: assetUrl('/worlds/Underwater Living Space Futuristic Design.spz', 'worlds/Underwater Living Space Futuristic Design.spz'),
+    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
+    colliderUrl: assetUrl('/worlds/Underwater Living Space Futuristic Design_collider.glb', 'worlds/Underwater Living Space Futuristic Design_collider.glb'),
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+    guide: "The scene is a luxurious, futuristic underwater living space, rendered with a high degree of realism and showcasing an innovative design that blends technology with the natural marine environment. The overall tone is serene and awe-inspiring, creating a sense of wonder and tranquility. A vast, curved panoramic window dominates the main living area, offering an expansive view into the ocean depths, where various marine life, including manta rays and smaller fish, gracefully swim by. Above this main window, a large circular skylight in the ceiling provides a stunning overhead view of the water's surface, with rippling light patterns illuminating the room. The room itself features clean, minimalist lines with white, curvilinear walls and integrated teal-blue LED lighting that accentuates the architectural forms. A large, plush coral-pink sectional sofa with a built-in circular glass coffee table provides comfortable seating. A sleek, white island counter serves as a central feature, topped with two transparent display cases containing vibrant coral and seashells, suggesting a continuation of the underwater theme indoors. Another rectangular window is located higher on the right wall, offering a different perspective of the water, with dynamic patterns of light and shadow on the surface. The floor reflects the dappled light from the water above, creating an immersive aquatic atmosphere throughout the space. To the left of the main living area, a dining nook with a white table and chairs is visible through a smaller, arched window, maintaining the underwater vista. "
+  },
+  {
     id: 'elegant-library',
     name: 'Elegant Library',
     url: assetUrl('/worlds/Elegant library with rich woodwork.spz', 'worlds/Elegant library with rich woodwork.spz'),
     imageUrl: '/worlds/Elegant library with rich woodwork_prompt.jpg',
     musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
     colliderUrl: assetUrl('/worlds/Elegant library with rich woodwork_collider.glb', 'worlds/Elegant library with rich woodwork_collider.glb'),
+    colliderQuaternion: [0, 0, 0, 1], // identity — this collider GLB was exported right-side-up (unlike the splat which needs a 180° X-flip)
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 0.3,
