@@ -91,6 +91,7 @@ export const WORLDS: WorldDef[] = [
     url: assetUrl('/worlds/Elegant library with rich woodwork.spz', 'worlds/Elegant library with rich woodwork.spz'),
     imageUrl: '/worlds/Elegant library with rich woodwork_prompt.jpg',
     musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
+    colliderUrl: assetUrl('/worlds/Elegant library with rich woodwork_collider.glb', 'worlds/Elegant library with rich woodwork_collider.glb'),
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 0.3,

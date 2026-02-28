@@ -77,7 +77,13 @@ export default function AgentController({ worldName }: { worldName?: string }) {
     worldNameRef.current = worldName ?? '';
   }, [worldName]);
 
-  // Initialize/reset when enabled state changes
+  // Initialize/reset when enabled state changes or world switches.
+  // NOTE: `world` and `rapier` come from useRapierWorld() — they are the *Rapier*
+  // physics engine instances, NOT the WorldDef. The Rapier world persists across
+  // world switches (only colliders are swapped), so it would NOT trigger a re-init
+  // on its own. We include `worldName` to ensure this effect re-runs when the
+  // user navigates to a different world, flushing stale scanner data, grid,
+  // scene descriptions, and splash labels from the previous world.
   useEffect(() => {
     if (!enabled || !world || !rapier) {
       scannerRef.current = null;
@@ -121,12 +127,14 @@ export default function AgentController({ worldName }: { worldName?: string }) {
     lastSplashRef.current = null;
     sceneDescriptionRef.current = '';
 
+    console.log(`[AgentController] initialized for world: ${worldName ?? 'unknown'}`);
+
     return () => {
       scannerRef.current = null;
       gridRef.current = null;
       initializedRef.current = false;
     };
-  }, [enabled, world, rapier, playerBody, config, vizDataRef, gridRef]);
+  }, [enabled, world, rapier, playerBody, config, vizDataRef, gridRef, worldName]);
 
   // 'V' key press → manual scene description
   useEffect(() => {
