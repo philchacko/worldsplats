@@ -87,11 +87,23 @@ export const WORLDS: WorldDef[] = [
     guide: "The scene is a luxurious, retro-inspired living room in a tropical setting, rendered with a realistic style that exudes a playful yet sophisticated tone. The vibrant colors and mid-century modern furnishings create an inviting and lively atmosphere within this expansive indoor-outdoor space. The floor is composed of a terrazzo pattern featuring shades of green, coral, and white, flowing seamlessly throughout the room and extending to the surrounding areas, hinting at a continuous design motif. A large, curved teal sofa with coral pillows serves as a prominent seating arrangement, facing a substantial, square coffee table in a matching teal hue. This table, made of a polished, lacquered material, holds various decorative objects, including clear glass bowls and books. Across from the teal sofa, two curved coral armchairs with teal throw pillows flank a similar, though smaller, curved coral sofa, creating a cohesive and symmetrical seating arrangement. A tall, wooden bar cabinet, with shelves filled with colorful liquor bottles and glassware, stands against the far wall, illuminated by internal lighting. Adjacent to the bar, a gallery wall displays an array of framed photographs, capturing moments of leisure and travel, arranged in a grid pattern. Large glass sliding doors and expansive windows dominate one entire wall, offering an unobstructed view of a lush, tropical garden with a swimming pool and additional outdoor seating, suggesting a close integration with nature. Above, three large, organic-shaped pendant lights hang from the high ceiling, casting a warm glow and complementing the room's artful design. ",
   },
   {
+    id: 'rainy-cyberpunk-loft-cityscape',
+    name: 'Rainy Cyberpunk Loft Cityscape',
+    url: assetUrl('/worlds/Rainy Cyberpunk Loft Cityscape.spz', 'worlds/Rainy Cyberpunk Loft Cityscape.spz'),
+    imageUrl: '/worlds/Rainy Cyberpunk Loft Cityscape_prompt.jpg',
+    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
+    colliderUrl: assetUrl('/worlds/Rainy Cyberpunk Loft Cityscape_collider.glb', 'worlds/Rainy Cyberpunk Loft Cityscape_collider.glb'),
+    position: [0, 0, 0],
+    quaternion: [1, 0, 0, 0],
+    scale: 1,
+    guide: "The scene is a cyberpunk-style loft apartment, rendered with realistic detail, showcasing a technologically advanced yet gritty urban environment. The overall tone is atmospheric and slightly melancholic, with the glow of neon lights and the impression of a perpetually rainy city. The room features a bunk bed structure, with the upper bunk serving as a sleeping area and the lower space potentially housing a sofa or daybed. Along the wall, modular storage units with glowing accents hold various items, suggesting a highly organized and compact living solution. A narrow ladder provides access to the upper bunk. A small, simple table with two chairs sits near the large window, offering a view of a sprawling cityscape dominated by towering buildings adorned with numerous glowing neon signs and digital billboards, creating a vibrant, albeit damp, urban panorama. Rain streaks down the windowpane, blurring the distant lights into colorful reflections. A drone rests on the table, indicating a connection to advanced technology or perhaps a hobby. The floor is lined with glowing strips, further emphasizing the futuristic aesthetic. The bunk bed structure is positioned against the back wall, with the ladder extending from the front of the upper bunk to the floor. The modular storage units are arranged beneath the upper bunk, to the left of the ladder. The table and chairs are situated directly in front of the large window, to the right of the ladder. The glowing floor strips run along the perimeter of the room. "
+  },
+  {
     id: 'oval-office',
     name: 'Oval Office',
     url: assetUrl('/worlds/Oval Office Elegant Historic Interior.spz', 'worlds/Oval Office Elegant Historic Interior.spz'),
     imageUrl: '/worlds/Oval Office Elegant Historic Interior_prompt.jpg',
-    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
+    musicUrl: assetUrl('/music/Cartoon_Cozy_Theme.mp3', 'music/Cartoon_Cozy_Theme.mp3'),
     colliderUrl: assetUrl('/worlds/Oval Office Elegant Historic Interior_collider.glb', 'worlds/Oval Office Elegant Historic Interior_collider.glb'),
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
@@ -108,89 +120,7 @@ export const WORLDS: WorldDef[] = [
     position: [0, 0, 0],
     quaternion: [1, 0, 0, 0],
     scale: 1,
-    guide: "The scene is a luxurious, futuristic underwater living space, rendered with a high degree of realism and showcasing an innovative design that blends technology with the natural marine environment. The overall tone is serene and awe-inspiring, creating a sense of wonder and tranquility. A vast, curved panoramic window dominates the main living area, offering an expansive view into the ocean depths, where various marine life, including manta rays and smaller fish, gracefully swim by. Above this main window, a large circular skylight in the ceiling provides a stunning overhead view of the water's surface, with rippling light patterns illuminating the room. The room itself features clean, minimalist lines with white, curvilinear walls and integrated teal-blue LED lighting that accentuates the architectural forms. A large, plush coral-pink sectional sofa with a built-in circular glass coffee table provides comfortable seating. A sleek, white island counter serves as a central feature, topped with two transparent display cases containing vibrant coral and seashells, suggesting a continuation of the underwater theme indoors. Another rectangular window is located higher on the right wall, offering a different perspective of the water, with dynamic patterns of light and shadow on the surface. The floor reflects the dappled light from the water above, creating an immersive aquatic atmosphere throughout the space. To the left of the main living area, a dining nook with a white table and chairs is visible through a smaller, arched window, maintaining the underwater vista. "
-  },
-  {
-    id: 'elegant-library',
-    name: 'Elegant Library',
-    url: assetUrl('/worlds/Elegant library with rich woodwork.spz', 'worlds/Elegant library with rich woodwork.spz'),
-    imageUrl: '/worlds/Elegant library with rich woodwork_prompt.jpg',
-    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
-    colliderUrl: assetUrl('/worlds/Elegant library with rich woodwork_collider.glb', 'worlds/Elegant library with rich woodwork_collider.glb'),
-    colliderQuaternion: [0, 0, 0, 1], // identity — this collider GLB was exported right-side-up (unlike the splat which needs a 180° X-flip)
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 0.3,
-    guide: "The scene is a sophisticated library, captured in a realistic style, exuding an atmosphere of refined comfort and intellectual pursuit. The overall tone is classic and inviting, with warm lighting and rich, dark wood finishes dominating the space. Bookshelves, filled with an extensive collection of books, line the walls, creating an encompassing scholarly environment. A rolling ladder leans against one of the tall bookshelves, providing access to higher volumes. Plush, upholstered sofas and armchairs are arranged around brass-bound coffee tables, inviting leisurely reading or conversation. The ceiling features recessed lighting and decorative coffers, casting a gentle glow that highlights the architectural details. Large windows provide glimpses of the urban landscape outside, balancing the interior's warmth with the city's dynamism. Ornate chandeliers hang from the ceiling, adding a touch of grandeur to the room. Paintings and busts adorn the walls and niches, further enhancing the classic aesthetic. A fireplace, centered between two bookshelves, adds to the cozy ambiance, complete with a mantelpiece displaying decorative objects. To the right of the fireplace, a writing desk with an armchair is nestled within a recessed area, illuminated by a table lamp, offering a private space for contemplation or work. The library extends around the entire room, with an unbroken continuity of bookshelves and architectural paneling. The large, patterned rug on the floor continues its intricate design throughout the room, unifying the various seating areas. The sofas and armchairs are positioned to create intimate conversation zones, each with its own lighting from table lamps. "
-  },
-  {
-    id: 'forest-retreat',
-    name: 'Forest Retreat',
-    url: assetUrl('/worlds/foresthouse.spz', 'worlds/foresthouse.spz'),
-    imageUrl: assetUrl('/worlds/foresthouse.jpg', 'worlds/foresthouse.jpg'),
-    musicUrl: assetUrl('/music/Sunlit_Grove_Ambient.mp3', 'music/Sunlit_Grove_Ambient.mp3'),
-    imageCredit: 'Kyra_Starr (Pixabay)',
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: "The scene is a lush, vibrant natural environment surrounding a rustic wooden house, captured in a painting-like style, evoking a tranquil and idyllic mood. The overall tone is one of peaceful solitude and a harmonious blend of architecture and nature. A large, multi-story wooden house with a light-colored, slightly weathered roof stands prominently within the scene, featuring multiple windows and a substantial wooden deck that wraps around part of its structure. The house is nestled amidst abundant green foliage, with tall trees forming a dense canopy overhead and around the dwelling, casting dappled shadows on the ground below. A pathway, possibly made of dirt or loose gravel, winds through the foreground, surrounded by various green plants and scattered rocks. Wooden steps lead up from the ground level to the house's deck, which is adorned with potted plants and what appears to be a small bench. The surrounding landscape consists of rolling grassy areas punctuated by patches of colorful flowers and more rock formations. The architecture of the house suggests a blend of traditional craftsmanship with functional outdoor living spaces. To the left of the house, beyond the main structure, additional green fencing or railings are visible, indicating further enclosed or defined areas within the property. The house is centrally positioned within the expansive natural setting, with the dense canopy of trees encompassing it from various directions. The wooden deck extends from the front and side of the house, offering elevated views of the surrounding garden. The pathway begins in the foreground, traversing towards the house and connecting with the base of the wooden steps."
-  },
-  {
-    id: 'lofi-seaview',
-    name: 'Lofi Seaview',
-    url: assetUrl('/worlds/lofistudy_sunset.spz', 'worlds/lofistudy_sunset.spz'),
-    imageUrl: assetUrl('/worlds/lofistudy_sunset.jpg', 'worlds/lofistudy_sunset.jpg'),
-    musicUrl: assetUrl('/music/Sunset_Focus.mp3', 'music/Sunset_Focus.mp3'),
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: "The scene is a cozy, highly detailed anime-style room, bathed in the soft, vibrant hues of a sunset over a cityscape. The overall tone is tranquil and inviting, creating an atmosphere conducive to both study and relaxation within a stylish urban dwelling. The room is structured with a large, expansive window dominating one wall, offering a panoramic view of a bustling metropolis across a body of water. To the left of the window, a floor-to-ceiling bookshelf is meticulously organized with numerous books, decorative items, and various personal effects. A computer desk is positioned below this bookshelf, featuring a monitor displaying a vibrant, detailed interface, a keyboard, and other computer peripherals, along with an office chair. To the right of the window, another tall bookshelf, also filled with books and objects, stands against the wall. A second, smaller wooden desk is located under this right bookshelf, adorned with a green-shaded desk lamp that illuminates papers and writing instruments. In the foreground, a comfortable blue sofa with throw pillows provides a seating area. The floor throughout the room is polished hardwood, overlaid with a soft rug that adds a touch of warmth. The large window is divided into multiple panes by dark frames. The computer desk is situated to the left of the window, while the smaller desk with the green lamp is to the right of the window. The sofa is positioned directly in front of the window, oriented towards the city view. The bookshelf on the left is adjacent to the wall that extends towards the room's interior, and the bookshelf on the right mirrors this arrangement. "
-  },
-  {
-    id: 'mainstreet-night',
-    name: 'Mainstreet (Night)',
-    url: assetUrl('/worlds/mainstreet_night.spz', 'worlds/mainstreet_night.spz'),
-    imageUrl: assetUrl('/worlds/mainstreet_night.jpg', 'worlds/mainstreet_night.jpg'),
-    musicUrl: assetUrl('/music/Neon_Night_Reverie.mp3', 'music/Neon_Night_Reverie.mp3'),
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: "The scene is a nocturnal city street, depicted in a stylized, animated painting technique with vibrant, exaggerated colors and a tranquil, slightly melancholic tone. The main thoroughfare stretches into the distance, lined on both sides by two-story buildings, mostly commercial establishments with storefronts at street level. A pale, full moon dominates the dark teal sky, casting a soft, ethereal glow upon the scene. Numerous overhead power lines crisscross the street, connecting to utility poles that punctuate the sidewalks. Brightly illuminated shop windows and neon signs cast warm orange and red reflections on the wet asphalt and concrete sidewalks. A prominent crosswalk with thick white stripes spans the road in the foreground, illuminated by the streetlights and storefront glow. On the left side of the street, a building with a red awning features a rectangular red neon sign above its large display window, from which warm orange light emanates. Across the street, on the right, other buildings also display illuminated windows and awnings, though one is light-colored and scalloped. Streetlights mounted on tall poles cast cones of light onto the pavement. The power lines sag slightly between the utility poles, adding to the urban landscape. The buildings recede into the blue-hued distance, where faint outlines of hills or mountains are visible under the moon. The utility poles are positioned at regular intervals along the sidewalks. The full moon is high in the sky. "
-  },
-  {
-    id: 'rural-retreat',
-    name: 'Rural Retreat',
-    url: assetUrl('/worlds/paddies.spz', 'worlds/paddies.spz'),
-    imageUrl: assetUrl('/worlds/paddies.jpg', 'worlds/paddies.jpg'),
-    musicUrl: assetUrl('/music/Tranquil_Fields.mp3', 'music/Tranquil_Fields.mp3'),
-    imageCredit: 'Kyra_Starr (Pixabay)',
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: 'The scene is a tranquil rural landscape, rendered in an anime-inspired art style with vibrant colors and soft, ethereal lighting, evoking a sense of peacefulness and pastoral charm. The air is clear and bright, and the overall mood is serene and idyllic. A traditional Japanese-style farmhouse with a dark, steep-pitched roof and an elevated wooden porch stands prominently in the mid-ground, surrounded by verdant rice paddies. Vines ascend the sides of the house, blending it harmoniously with the lush environment. In the distance, towering mountains draped in mist and foliage create a majestic backdrop, their forms softened by atmospheric perspective. A narrow, winding dirt path, bordered by small rocks and low-lying vegetation, meanders through the bright green rice fields, inviting exploration. A rustic wooden fence, composed of rough-hewn posts and horizontal rails, parallels the path, separating it from the cultivated fields. Trees with dense, round canopies dot the landscape, particularly around the farmhouse, contributing to the rich greenery. In the far distance, faint utility poles with horizontal cross arms are barely discernible, indicating a subtle touch of modern infrastructure within the otherwise natural setting. The rice paddies stretch expansively across the foreground and mid-ground, divided into neat rectangular sections by earthen ridges. Small, low-lying shrubs with pink blossoms are visible near the farmhouse, adding a delicate splash of color to the predominantly green and earthy tones. The path begins in the lower left corner and curves gently towards the right, leading past the fence and into the fields. The farmhouse stands to the right of the path, its front facing slightly towards the viewer. The mountains are positioned behind the farmhouse and the fields, rising into the sky. The trees are scattered around the farmhouse, with a particularly large one to its right. '
-  },
-  {
-    id: 'simpsons',
-    name: 'Simpsons World',
-    url: assetUrl('/worlds/simpsons.spz', 'worlds/simpsons.spz'),
-    imageUrl: assetUrl('/worlds/simpsons.jpeg', 'worlds/simpsons.jpeg'),
-    musicUrl: assetUrl('/music/Cartoon_Cozy_Theme.mp3', 'music/Cartoon_Cozy_Theme.mp3'),
-    imageCredit: 'Disney',
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: `The scene is a cartoon-style depiction of a vibrant, domestic interior, evoking a cheerful and familiar atmosphere reminiscent of a classic animated sitcom. The primary living space features a single cozy, three-seater sofa in a rich, pumpkin orange hue, positioned centrally. Above the sofa, a framed painting of a simple white sailboat with a red hull, sailing under a sky with fluffy white clouds, hangs on the wall. To the left of the sofa, a purple end table holds a purple-shaded table lamp with a dark base and a turquoise rotary telephone. Below the lamp, two books with light-colored spines are neatly stacked on a shelf within the table. An arched doorway on the far left leads into a bright yellow kitchen with checkered floors, where purple cabinets and a window are visible. To the right of the sofa, a tall floor lamp with a pleated, orange lampshade stands beside a red magazine rack, overflowing with periodicals. Another arched doorway on the far right leads to an adjacent dining room, with a dark wooden table with curved legs and a purple chair. The walls throughout the main room are painted a soft, bubblegum pink, complemented by a teal-green carpet. A large, oval rug with concentric rings of pink, purple, and blue adds a splash of color to the foreground.  Across from the TV sits a television next to a window that looks out on a classic suburban American front yard.`,
-  },
-  {
-    id: 'european-city-sunset',
-    name: 'European City (Sunset)',
-    url: assetUrl('/worlds/europeanurban_sunset.spz', 'worlds/europeanurban_sunset.spz'),
-    imageUrl: assetUrl('/worlds/europeanurban_sunset.jpg', 'worlds/europeanurban_sunset.jpg'),
-    musicUrl: assetUrl('/music/Sunset_Boulevard_Serenade.mp3', 'music/Sunset_Boulevard_Serenade.mp3'),
-    position: [0, 0, 0],
-    quaternion: [1, 0, 0, 0],
-    scale: 1,
-    guide: "The scene is a lively urban street bathed in the warm glow of a sunset, rendered in a distinctive anime or cartoon style. The overall mood is tranquil and nostalgic, evoking a sense of calm as the day draws to a close. Buildings with intricate architectural details line the street, their facades painted in various shades of brown and ochre, with ornate balconies extending from many windows. Numerous power lines crisscross the sky, connecting the buildings and adding a sense of urban density. Lush green trees and bushes dot the street level, providing splashes of vibrant color against the warm tones of the architecture. On the right side of the street, a balcony with a black railing overlooks the scene, where a small red potted plant sits on the floor. A window on the right building reflects the setting sun, casting a bright, orange light into the interior. The buildings are multi-storied, featuring various window shapes and sizes, some with dark frames. The balconies are adorned with decorative metalwork. The street appears to be slightly uphill, with the buildings receding into the distance, creating an impression of depth. The red potted plant rests on the balcony floor, positioned near the rightmost edge of the scene. The reflecting window is part of the building directly adjacent to the balcony. The power lines stretch horizontally across the upper portion of the scene, connecting the various structures. "
+    guide: "The scene is a meticulously crafted post-apocalyptic shelter, rendered in a stylized, almost graphic novel-like aesthetic, conveying a mood of resilient survival and resourcefulness. The interior walls are constructed from an assortment of salvaged corrugated metal sheets and planks, exhibiting various states of rust and wear, creating a patchwork effect. The flooring is a mosaic of cracked tiles and patched concrete, indicating makeshift repairs. The central area features a well-worn, light-colored sofa situated beneath a large window, allowing bright sunlight to stream into the space. A barrel-turned-coffee table with a wooden crate alongside it rests in front of the sofa. To the left, a rudimentary kitchen area is assembled from mismatched cabinets and appliances, including a sink, a small stove, and a refrigerator. On the right side, partially partitioned by a tattered fabric curtain, is a sleeping area with a simple bed adorned with a patchwork quilt. Adjacent to the sleeping area, a wooden shelf unit holds multiple electronic devices and a radio. Hand-painted signs declaring \"HOPE LIVES\" and \"SCRAP & SALVAGE\" are affixed to the wall, reinforcing the themes of the shelter. The room is filled with functional, repurposed items, each bearing the marks of a harsh environment. The entire structure feels sturdy despite its salvaged origins, providing a sense of security and utility."
   }
 ];
 
