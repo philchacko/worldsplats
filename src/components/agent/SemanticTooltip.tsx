@@ -28,7 +28,7 @@ export default function SemanticTooltip() {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-      <div className="mt-12 px-3 py-1 rounded border border-zinc-600 bg-zinc-900/80 backdrop-blur-sm">
+      <div className="mt-20 px-3 py-1 rounded border border-zinc-600 bg-zinc-900/80 backdrop-blur-sm">
         <span className="text-xs font-mono tracking-wider text-amber-300 uppercase">
           {label}
         </span>
