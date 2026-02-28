@@ -41,6 +41,7 @@ import { IconButton, Button } from '@/components/hud/Button';
 import MobileHud from '@/components/controls/MobileHud';
 import AgentHud from '@/components/agent/AgentHud';
 import CuratorAudio from '@/components/agent/CuratorAudio';
+import CuratorNarration from '@/components/agent/CuratorNarration';
 import SemanticTooltip from '@/components/agent/SemanticTooltip';
 
 function OverlayUI({
@@ -322,6 +323,9 @@ function PageContent() {
 
       {/* Curator ambient sounds */}
       <CuratorAudio />
+
+      {/* Curator voice narration */}
+      <CuratorNarration world={world} />
 
       {/* Semantic label tooltip — shows label under reticle */}
       <SemanticTooltip />

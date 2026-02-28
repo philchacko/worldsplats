@@ -11,6 +11,7 @@
     "db:seed": "node scripts/setup-worlds-table.mjs --seed"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@dimforge/rapier3d-compat": "^0.12.0",
     "@fal-ai/client": "^1.9.4",
     "@react-three/drei": "^10.7.6",

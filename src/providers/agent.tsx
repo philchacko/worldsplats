@@ -53,6 +53,8 @@ type AgentAPI = {
   deepScanSignalRef: React.MutableRefObject<number>;
   /** Semantic label name at the reticle center, null if none. Updated per-frame inside Canvas. */
   hoveredLabelRef: React.MutableRefObject<string | null>;
+  /** Narration speaking state — written by CuratorNarration, read by audio/HUD. */
+  narrationStateRef: React.MutableRefObject<{ speaking: boolean; lastCommentTime: number }>;
 };
 
 const AgentCtx = createContext<AgentAPI | null>(null);
@@ -66,6 +68,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const lastSplashRef = useRef<SplashStats | null>(null);
   const deepScanSignalRef = useRef(0);
   const hoveredLabelRef = useRef<string | null>(null);
+  const narrationStateRef = useRef<{ speaking: boolean; lastCommentTime: number }>({ speaking: false, lastCommentTime: 0 });
 
   const stableSetEnabled = useCallback((v: boolean) => {
     setEnabled(v);
@@ -123,6 +126,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     lastSplashRef,
     deepScanSignalRef,
     hoveredLabelRef,
+    narrationStateRef,
   }), [enabled, stableSetEnabled, issueCommand, clearCommand, triggerDeepScan]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;
