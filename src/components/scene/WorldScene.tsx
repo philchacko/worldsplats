@@ -121,7 +121,7 @@ function SceneInner({
       <R3FBridge />
 
       {/* Autonomous exploration agent */}
-      <AgentController />
+      <AgentController worldName={world.name} />
       <AgentVisualizer />
 
       {/* Usual lighting for mesh-based objects */}

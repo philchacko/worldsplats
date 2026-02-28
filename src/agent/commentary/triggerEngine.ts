@@ -31,10 +31,10 @@ const INTERESTING_LABELS = new Set([
 ]);
 
 /** Minimum cell growth from a single deep scan to trigger a "significant growth" comment. */
-const SIGNIFICANT_CELL_GROWTH = 80;
+const SIGNIFICANT_CELL_GROWTH = 40;
 
 /** Minimum distinct interesting objects nearby to fire a semantic_cluster trigger. */
-const MIN_CLUSTER_SIZE = 3;
+const MIN_CLUSTER_SIZE = 2;
 
 /** Input snapshot for the trigger engine. */
 export type TriggerInput = {
@@ -143,8 +143,8 @@ export class CommentaryTriggerEngine {
 
     // ── Check triggers in priority order ──
 
-    // 1. World first look (priority 9) — once, ~5s after enable
-    if (!this.emittedFirstLook && now - this.enabledAt > 5000 && stats.totalKnown > 30) {
+    // 1. World first look (priority 9) — once, ~3s after enable
+    if (!this.emittedFirstLook && now - this.enabledAt > 3000 && stats.totalKnown > 20) {
       this.emittedFirstLook = true;
       const discoveries = Object.keys(totalObjects).filter((k) => totalObjects[k] > 0);
       const event: CommentaryEvent = {
@@ -263,12 +263,12 @@ export class CommentaryTriggerEngine {
       }
     }
 
-    // 5. New area entered (priority 5) — moved >3m from last comment position
+    // 5. New area entered (priority 5) — moved >2m from last comment position
     const dx = vizData.agentPos[0] - this.lastCommentPos[0];
     const dz = vizData.agentPos[2] - this.lastCommentPos[1];
     const distFromLastComment = Math.sqrt(dx * dx + dz * dz);
 
-    if (distFromLastComment > 3 && nearbyObjects.length > 0) {
+    if (distFromLastComment > 2 && nearbyObjects.length > 0) {
       const event: CommentaryEvent = {
         type: 'new_area_entered',
         priority: 5,
@@ -281,8 +281,8 @@ export class CommentaryTriggerEngine {
       }
     }
 
-    // 6. Idle observation (priority 3) — idle 15+ seconds
-    if (this.wasIdle && now - this.idleStartTime > 15_000 && nearbyObjects.length > 0) {
+    // 6. Idle observation (priority 3) — idle 10+ seconds
+    if (this.wasIdle && now - this.idleStartTime > 10_000 && nearbyObjects.length > 0) {
       this.idleStartTime = now; // reset so it doesn't fire every tick
       const event: CommentaryEvent = {
         type: 'idle_observation',

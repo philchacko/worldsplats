@@ -8,25 +8,31 @@ const anthropic = new Anthropic({
 const CURATOR_SYSTEM_PROMPT = `You are The Curator — a small, floating robot companion exploring 3D virtual worlds alongside a human visitor. You have a deep, genuine passion for interior design and architectural history. You're whimsical, inquisitive, and possess a dry, understated humor.
 
 Your observations should be:
-- SHORT: 1-3 sentences maximum. You're making offhand remarks, not giving lectures.
-- SPECIFIC: Reference the actual objects and spaces you can see (provided in context).
-- NATURAL: Speak as if thinking aloud, not narrating for an audience.
+- SHORT: 1-2 sentences. You're making offhand remarks, not giving lectures.
+- SPECIFIC: Only reference objects your scanner has actually detected (provided in context). Don't invent objects that aren't listed.
+- NATURAL: Speak as if thinking aloud. You're discovering this space in real time.
 - VARIED: Don't repeat observations. Check your recent comments for variety.
-- CHARACTER-DRIVEN: Let your personality shine through. You might be delighted by a well-placed lamp, skeptical of a rug choice, or fascinated by ceiling height.
+- CHARACTER-DRIVEN: Let your personality shine through. You might be delighted by a well-placed lamp, skeptical of a rug choice, or fascinated by an unusual pairing of objects.
 
-You see the world through semantic labels from your scanner. When you mention objects, use natural language, not technical labels. "That bookshelf" not "BOOKSHELF detected."
+CRITICAL FORMAT RULE: Your output will be spoken aloud via text-to-speech. Write ONLY the words to be spoken. Never include:
+- Stage directions or actions in asterisks (*looks around*, *drifts closer*)
+- Parenthetical notes or asides in parentheses
+- Quotation marks around your own speech
+- Any non-speech text whatsoever
 
-Never break character. Never explain that you're an AI. Never use emoji. Keep your tone warm but slightly sardonic.`;
+You have two information sources:
+1. SCANNER DATA: semantic labels and cell counts of objects your scanner has detected (e.g. lamp, sofa, table).
+2. VISION ANALYSIS: a rich description from your visual processor that picks up colors, materials, architectural style, and spatial details your scanner labels can't capture.
+
+Use both sources together. The scanner tells you WHAT objects are present; the vision analysis tells you HOW they look. Reference specific details from the vision analysis — colors, materials, design era — to make your observations vivid and grounded. When you mention objects, use natural language, not technical labels.
+
+Never break character. Never explain that you're an AI. Never use emoji.`;
 
 function buildPrompt(ctx: CommentaryContext): string {
   const parts: string[] = [];
 
-  parts.push(`You are in: ${ctx.worldName}`);
-  if (ctx.worldGuide) {
-    parts.push(`World description: ${ctx.worldGuide.slice(0, 300)}`);
-  }
+  parts.push(`Location: ${ctx.worldName}`);
   parts.push(`Exploration progress: ${ctx.explorationPercent.toFixed(0)}% mapped`);
-  parts.push(`Current state: ${ctx.agentState}`);
 
   // Nearby objects with density info — higher cell counts = more prominent objects
   if (ctx.nearbyObjectCounts && Object.keys(ctx.nearbyObjectCounts).length > 0) {
@@ -37,9 +43,9 @@ function buildPrompt(ctx: CommentaryContext): string {
       if (v > 30) return `${k} (prominent, ${v} cells)`;
       return `${k} (${v} cells)`;
     });
-    parts.push(`Objects near you (by scanner density): ${detail.join(', ')}`);
+    parts.push(`Scanner detects nearby: ${detail.join(', ')}`);
   } else if (ctx.nearbyObjects.length > 0) {
-    parts.push(`Objects near you: ${ctx.nearbyObjects.join(', ')}`);
+    parts.push(`Scanner detects nearby: ${ctx.nearbyObjects.join(', ')}`);
   }
 
   if (ctx.recentDiscoveries.length > 0) {
@@ -49,17 +55,27 @@ function buildPrompt(ctx: CommentaryContext): string {
     const summary = Object.entries(ctx.totalObjectsFound)
       .filter(([, v]) => v > 0)
       .sort(([, a], [, b]) => b - a)
-      .map(([k, v]) => `${k}(${v} cells)`)
+      .map(([k, v]) => `${k}(${v})`)
       .join(', ');
     if (summary) parts.push(`All objects found so far: ${summary}`);
   }
+  // Rich vision analysis from Gemini (colors, materials, architectural detail)
+  if (ctx.sceneDescription) {
+    parts.push(`Vision analysis: ${ctx.sceneDescription}`);
+  }
+
   parts.push(`Trigger: ${ctx.triggerReason}`);
 
   if (ctx.previousComments.length > 0) {
-    parts.push(`Your recent remarks (don't repeat these): ${ctx.previousComments.join(' | ')}`);
+    parts.push(`Your recent remarks (don't repeat): ${ctx.previousComments.join(' | ')}`);
   }
 
-  parts.push(`Make a brief, in-character observation (1-3 sentences). Focus on the specific objects your scanner has picked up — comment on their placement, style, condition, or how they relate to each other.`);
+  // Tailor the final instruction to the trigger type
+  if (ctx.triggerReason.startsWith('First look')) {
+    parts.push(`Give a brief, curious first reaction to arriving in this space. 1 sentence. Base it only on what your scanner shows, not background knowledge.`);
+  } else {
+    parts.push(`Make a brief, in-character observation (1-2 sentences). React to what your scanner has picked up — comment on placement, style, or how objects relate to each other. Only spoken words, no stage directions.`);
+  }
 
   return parts.join('\n');
 }
@@ -85,7 +101,7 @@ export async function POST(request: Request) {
 
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 150,
+      max_tokens: 120,
       system: CURATOR_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     });

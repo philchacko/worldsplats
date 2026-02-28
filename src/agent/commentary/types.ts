@@ -27,6 +27,8 @@ export type CommentaryContext = {
   nearbyObjectCounts?: Record<string, number>;
   /** Last 3 comments for continuity/variety. */
   previousComments: string[];
+  /** Rich natural-language description from Gemini vision model. */
+  sceneDescription?: string;
   /** Human-readable reason this event was triggered. */
   triggerReason: string;
   /** For future conversation mode: the user's spoken message. */
@@ -46,11 +48,11 @@ export type CommentaryEvent = {
 
 export const RATE_CONFIG = {
   /** Minimum milliseconds between commentary. */
-  minIntervalMs: 25_000,
+  minIntervalMs: 15_000,
   /** Hard cap on comments per minute. */
-  maxPerMinute: 3,
+  maxPerMinute: 5,
   /** Extra cooldown (ms) after TTS finishes before another can start. */
-  cooldownAfterSpeaking: 5_000,
+  cooldownAfterSpeaking: 3_000,
   /** Priority >= this value can override minIntervalMs (but not maxPerMinute). */
-  priorityOverrideThreshold: 9,
+  priorityOverrideThreshold: 7,
 } as const;

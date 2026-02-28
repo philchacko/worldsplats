@@ -6,6 +6,7 @@ import { AgentState, DEFAULT_AGENT_CONFIG, type AgentConfig, type LidarHit, type
 import type { OccupancyGrid } from '@/agent/OccupancyGrid';
 import { segmentScene, DEFAULT_CONCEPTS } from '@/agent/segmentation';
 import { splashSegmentation } from '@/agent/semanticSplash';
+import { captureSnapshot } from '@/agent/captureSnapshot';
 
 /** Data written each frame by AgentController, read by AgentVisualizer. */
 export type VizData = {
@@ -55,6 +56,10 @@ type AgentAPI = {
   hoveredLabelRef: React.MutableRefObject<string | null>;
   /** Narration speaking state — written by CuratorNarration, read by audio/HUD. */
   narrationStateRef: React.MutableRefObject<{ speaking: boolean; lastCommentTime: number }>;
+  /** Latest scene description from Gemini vision model. */
+  sceneDescriptionRef: React.MutableRefObject<string>;
+  /** Capture a screenshot and send it to Gemini for a rich scene description. */
+  triggerSceneDescription: (worldName?: string) => Promise<string>;
 };
 
 const AgentCtx = createContext<AgentAPI | null>(null);
@@ -69,6 +74,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const deepScanSignalRef = useRef(0);
   const hoveredLabelRef = useRef<string | null>(null);
   const narrationStateRef = useRef<{ speaking: boolean; lastCommentTime: number }>({ speaking: false, lastCommentTime: 0 });
+  const sceneDescriptionRef = useRef<string>('');
 
   const stableSetEnabled = useCallback((v: boolean) => {
     setEnabled(v);
@@ -78,6 +84,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       gridRef.current = null;
       lastSplashRef.current = null;
       hoveredLabelRef.current = null;
+      sceneDescriptionRef.current = '';
     }
   }, []);
 
@@ -112,6 +119,30 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
+  const triggerSceneDescription = useCallback(async (worldName?: string) => {
+    const ctx = r3fRef.current;
+    if (!ctx) throw new Error('R3F context not available — is the Canvas mounted?');
+
+    const imageBase64 = captureSnapshot(ctx.gl, ctx.scene, ctx.camera);
+    console.log('[SceneDescription] captured screenshot, sending to Gemini...');
+
+    const res = await fetch('/api/describe-scene', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, worldName }),
+    });
+
+    if (!res.ok) {
+      console.warn('[SceneDescription] API error:', res.status);
+      return '';
+    }
+
+    const { description } = (await res.json()) as { description: string };
+    sceneDescriptionRef.current = description;
+    console.log(`[SceneDescription] "${description}"`);
+    return description;
+  }, []);
+
   const api = React.useMemo<AgentAPI>(() => ({
     enabled,
     setEnabled: stableSetEnabled,
@@ -127,7 +158,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     deepScanSignalRef,
     hoveredLabelRef,
     narrationStateRef,
-  }), [enabled, stableSetEnabled, issueCommand, clearCommand, triggerDeepScan]);
+    sceneDescriptionRef,
+    triggerSceneDescription,
+  }), [enabled, stableSetEnabled, issueCommand, clearCommand, triggerDeepScan, triggerSceneDescription]);
 
   return <AgentCtx.Provider value={api}>{children}</AgentCtx.Provider>;
 }

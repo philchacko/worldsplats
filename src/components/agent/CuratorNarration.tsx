@@ -26,6 +26,7 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
     lastSplashRef,
     deepScanSignalRef,
     narrationStateRef,
+    sceneDescriptionRef,
   } = useAgent();
 
   const triggerEngineRef = useRef<CommentaryTriggerEngine | null>(null);
@@ -97,13 +98,19 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
         deepScanSignal: deepScanSignalRef.current,
         totalObjects: totalObjectsRef.current,
         worldName: world.name,
-        worldGuide: world.guide ?? '',
+        worldGuide: '',
         previousComments: previousCommentsRef.current,
       };
 
       // Check for an interesting event
       const event = engine.evaluate(triggerInput);
       if (!event) return;
+
+      // Inject latest Gemini scene description into the event context
+      const desc = sceneDescriptionRef.current;
+      if (desc) {
+        event.context.sceneDescription = desc;
+      }
 
       // Run the narration pipeline
       await runNarration(event, player, engine);
@@ -152,6 +159,23 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
   return null; // No UI — subtitles can be added later
 }
 
+/**
+ * Strip stage directions and non-speech artifacts so only spoken words reach TTS.
+ * Removes: *actions*, (parentheticals), "quoted speech wrappers", leading/trailing whitespace.
+ */
+function cleanForTTS(raw: string): string {
+  let text = raw;
+  // Remove *stage directions* (including multi-word)
+  text = text.replace(/\*[^*]+\*/g, '');
+  // Remove (parenthetical asides)
+  text = text.replace(/\([^)]*\)/g, '');
+  // Remove wrapping quotation marks if the entire text is quoted
+  text = text.replace(/^["\u201C](.+)["\u201D]$/, '$1');
+  // Collapse multiple spaces / newlines into single space
+  text = text.replace(/\s+/g, ' ');
+  return text.trim();
+}
+
 /** Fetch streaming text from the /api/narrate route and collect it. */
 async function fetchNarrationText(context: CommentaryContext): Promise<string> {
   const response = await fetch('/api/narrate', {
@@ -177,5 +201,5 @@ async function fetchNarrationText(context: CommentaryContext): Promise<string> {
     fullText += decoder.decode(value, { stream: true });
   }
 
-  return fullText.trim();
+  return cleanForTTS(fullText);
 }

@@ -22,6 +22,11 @@ const MAX_RANGE = 12;
 /** How often to auto-trigger a deep scan (seconds). */
 const DEEP_SCAN_INTERVAL = 20;
 
+/** How often to auto-trigger a Gemini scene description (seconds). */
+const SCENE_DESCRIBE_INTERVAL = 45;
+/** Delay after enabling before first scene description (seconds). */
+const SCENE_DESCRIBE_INITIAL_DELAY = 4;
+
 /** How often to search for a new exploration target (seconds). */
 const EXPLORE_SEARCH_INTERVAL = 3;
 /** How far to search for frontier cells (meters). */
@@ -40,9 +45,9 @@ const IDLE_ROTATE_SPEED = 0.5;
  *
  * A range leash keeps the agent within MAX_RANGE of the player.
  */
-export default function AgentController() {
+export default function AgentController({ worldName }: { worldName?: string }) {
   const { world, rapier, playerBody } = useRapierWorld();
-  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan } = useAgent();
+  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan, triggerSceneDescription } = useAgent();
 
   const posRef = useRef(new THREE.Vector3());
   const scannerRef = useRef<LidarScanner | null>(null);
@@ -61,6 +66,16 @@ export default function AgentController() {
   // Autonomous exploration
   const exploreTargetRef = useRef<[number, number, number] | null>(null);
   const exploreTimerRef = useRef(0);
+
+  // Scene description (Gemini vision)
+  const sceneDescribeTimerRef = useRef(0);
+  const sceneDescribeInFlightRef = useRef(false);
+  const worldNameRef = useRef('');
+
+  // Keep world name in sync for Gemini calls
+  useEffect(() => {
+    worldNameRef.current = worldName ?? '';
+  }, [worldName]);
 
   // Initialize/reset when enabled state changes
   useEffect(() => {
@@ -97,6 +112,8 @@ export default function AgentController() {
 
     scanTimerRef.current = config.scanInterval; // trigger immediate first scan
     deepScanTimerRef.current = 0;
+    sceneDescribeTimerRef.current = SCENE_DESCRIBE_INTERVAL - SCENE_DESCRIBE_INITIAL_DELAY; // fires ~4s after enable
+    sceneDescribeInFlightRef.current = false;
     stateRef.current = AgentState.IDLE;
     initializedRef.current = true;
 
@@ -106,6 +123,26 @@ export default function AgentController() {
       initializedRef.current = false;
     };
   }, [enabled, world, rapier, playerBody, config, vizDataRef, gridRef]);
+
+  // 'V' key press → manual scene description
+  useEffect(() => {
+    if (!enabled) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'v' || e.key === 'V') {
+        if (sceneDescribeInFlightRef.current) return;
+        sceneDescribeInFlightRef.current = true;
+        sceneDescribeTimerRef.current = 0;
+        console.log('[AgentController] manual scene description (V key)');
+        triggerSceneDescription(worldNameRef.current).catch((err) => {
+          console.warn('[AgentController] manual scene description failed:', err);
+        }).finally(() => {
+          sceneDescribeInFlightRef.current = false;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [enabled, triggerSceneDescription]);
 
   useFrame((_, delta) => {
     if (!enabled || !initializedRef.current || !rapier || !world) return;
@@ -246,6 +283,21 @@ export default function AgentController() {
         console.warn('[AgentController] auto deep scan failed:', err);
       }).finally(() => {
         deepScanInFlightRef.current = false;
+      });
+    }
+
+    // ── Auto scene description (periodic Gemini vision) ──
+    sceneDescribeTimerRef.current += delta;
+    if (
+      sceneDescribeTimerRef.current >= SCENE_DESCRIBE_INTERVAL &&
+      !sceneDescribeInFlightRef.current
+    ) {
+      sceneDescribeTimerRef.current = 0;
+      sceneDescribeInFlightRef.current = true;
+      triggerSceneDescription(worldNameRef.current).catch((err) => {
+        console.warn('[AgentController] auto scene description failed:', err);
+      }).finally(() => {
+        sceneDescribeInFlightRef.current = false;
       });
     }
   });
