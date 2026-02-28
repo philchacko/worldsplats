@@ -27,6 +27,7 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
     deepScanSignalRef,
     narrationStateRef,
     sceneDescriptionRef,
+    narrationTextRef,
   } = useAgent();
 
   const triggerEngineRef = useRef<CommentaryTriggerEngine | null>(null);
@@ -69,6 +70,7 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
   // Cancel in-flight speech and clear narration state on world switch
   useEffect(() => {
     narrationStateRef.current = { speaking: false, lastCommentTime: 0 };
+    narrationTextRef.current = '';
     return () => {
       ttsPlayerRef.current?.cancel();
     };
@@ -142,7 +144,11 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
       }
       console.log(`[CuratorNarration] text: "${text}"`);
 
-      // 2. Speak it via ElevenLabs
+      // 2. Expose text for subtitles
+      narrationTextRef.current = text;
+      setVersion((v) => v + 1);
+
+      // 3. Speak it via ElevenLabs
       const spoken = await player.speak(text, voiceId);
       if (spoken) {
         previousCommentsRef.current = [
@@ -154,6 +160,7 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
       console.warn('[CuratorNarration] pipeline error:', err);
     } finally {
       narrationStateRef.current = { speaking: false, lastCommentTime: Date.now() };
+      narrationTextRef.current = '';
       engine.recordCompletion();
       setVersion((v) => v + 1);
     }

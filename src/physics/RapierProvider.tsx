@@ -20,12 +20,14 @@ export function RapierProvider({
   gravity = UNIVERSE_CONFIG.GRAVITY,
   colliderUrl,
   colliderRotation,
+  colliderScale,
   spawnPosition,
   children,
 }: {
   gravity?: { x: number; y: number; z: number };
   colliderUrl?: string;
   colliderRotation?: [number, number, number, number]; // x,y,z,w — match the visual mesh rotation
+  colliderScale?: number; // uniform scale — must match the splat's WorldDef.scale
   spawnPosition?: [number, number, number];
   children: React.ReactNode;
 }) {
@@ -116,6 +118,10 @@ export function RapierProvider({
             resolvedRotation[2], resolvedRotation[3],
           );
         }
+        // Apply same scale as the visual splat so collider aligns perfectly.
+        if (colliderScale != null && colliderScale !== 1) {
+          gltf.scene.scale.setScalar(colliderScale);
+        }
         gltf.scene.updateMatrixWorld(true);
         gltf.scene.traverse((child: THREE.Object3D) => {
           // @ts-expect-error narrow at runtime
@@ -161,7 +167,7 @@ export function RapierProvider({
         envBodyRef.current = null;
       }
     };
-  }, [rapierReady, resolvedColliderUrl, resolvedRotation]);
+  }, [rapierReady, resolvedColliderUrl, resolvedRotation, colliderScale]);
 
   // Reset player position when world changes
   useEffect(() => {

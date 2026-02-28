@@ -58,6 +58,8 @@ type AgentAPI = {
   narrationStateRef: React.MutableRefObject<{ speaking: boolean; lastCommentTime: number }>;
   /** Latest scene description from Gemini vision model. */
   sceneDescriptionRef: React.MutableRefObject<string>;
+  /** Current narration text being spoken (empty when not speaking). For subtitles. */
+  narrationTextRef: React.MutableRefObject<string>;
   /** Capture a screenshot and send it to Gemini for a rich scene description. */
   triggerSceneDescription: (worldName?: string) => Promise<string>;
 };
@@ -75,6 +77,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const hoveredLabelRef = useRef<string | null>(null);
   const narrationStateRef = useRef<{ speaking: boolean; lastCommentTime: number }>({ speaking: false, lastCommentTime: 0 });
   const sceneDescriptionRef = useRef<string>('');
+  const narrationTextRef = useRef<string>('');
 
   const stableSetEnabled = useCallback((v: boolean) => {
     setEnabled(v);
@@ -85,6 +88,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       lastSplashRef.current = null;
       hoveredLabelRef.current = null;
       sceneDescriptionRef.current = '';
+      narrationTextRef.current = '';
     }
   }, []);
 
@@ -159,6 +163,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     hoveredLabelRef,
     narrationStateRef,
     sceneDescriptionRef,
+    narrationTextRef,
     triggerSceneDescription,
   }), [enabled, stableSetEnabled, issueCommand, clearCommand, triggerDeepScan, triggerSceneDescription]);
 
