@@ -23,7 +23,7 @@ const LABEL_NAMES: Record<number, string> = {
   [SemanticLabel.PAINTING]: 'painting',
 };
 
-// Curator model
+// ── Curator model ──
 const CURATOR_MODEL_PATH = '/characters/thecurator.glb';
 const CURATOR_SCALE = 0.25;
 /** Vertical offset relative to agent position. Negative = lower (agent Y ≈ player eye ~1.4m). */
@@ -45,41 +45,44 @@ const WOBBLE_SPEED = 1.6;   // sway cycle speed (slower than bob)
 const WOBBLE_TILT = 0.04;   // roll/pitch tilt amplitude (radians)
 /** Intensity of the fill light illuminating the Curator. */
 const FILL_LIGHT_INTENSITY = 3.0;
-/** Intensity of the eye glow point light. Animate this later for speech. */
+/** Intensity of the eye glow point light. */
 const EYE_LIGHT_INTENSITY = 4.5;
 const EYE_LIGHT_COLOR = 0x88ccff;
 /** Emissive boost so the model is self-lit from all angles (0 = none, 1 = full). */
 const EMISSIVE_INTENSITY = 0.35;
 
-// Base colors
-const COLOR_OCCUPIED = new THREE.Color(0xff4444);
-const COLOR_LIDAR = new THREE.Color(0xffff00);
-const COLOR_PATH = new THREE.Color(0x00ffff);
+/** Render order: viz draws after splats, Curator draws after viz. */
+const VIZ_RENDER_ORDER = 900;
+const CURATOR_RENDER_ORDER = 1000;
 
-// Semantic label colors — bright, vivid palette
+// ── Colors — brass/cyan theme matching the Curator ──
+const COLOR_OCCUPIED = new THREE.Color(0xdd8844); // warm copper for walls/obstacles
+const COLOR_LIDAR = new THREE.Color(0x88ccff);    // cyan matching eye glow
+const COLOR_PATH = new THREE.Color(0xffaa44);     // warm amber
+
+// Semantic label colors — cohesive teal/amber palette
 const SEMANTIC_COLORS: Record<number, THREE.Color> = {
-  [SemanticLabel.FLOOR]:     new THREE.Color(0xFFDD44), // bright gold
-  [SemanticLabel.WALL]:      new THREE.Color(0x44AAFF), // bright blue
-  [SemanticLabel.CEILING]:   new THREE.Color(0xAADDFF), // light sky
-  [SemanticLabel.DOOR]:      new THREE.Color(0xFF8800), // bright orange
-  [SemanticLabel.WINDOW]:    new THREE.Color(0x33FFDD), // bright cyan
-  [SemanticLabel.SOFA]:      new THREE.Color(0xFF44FF), // hot magenta
-  [SemanticLabel.TABLE]:     new THREE.Color(0xFF6622), // deep orange
-  [SemanticLabel.CHAIR]:     new THREE.Color(0x44FF66), // neon green
-  [SemanticLabel.RUG]:       new THREE.Color(0xFF4466), // bright red-pink
-  [SemanticLabel.LAMP]:      new THREE.Color(0xFFFF44), // bright yellow
-  [SemanticLabel.BOOKSHELF]: new THREE.Color(0x44FFCC), // bright teal
-  [SemanticLabel.PAINTING]:  new THREE.Color(0xFF44AA), // hot pink
+  [SemanticLabel.FLOOR]:     new THREE.Color(0xccaa55), // muted brass
+  [SemanticLabel.WALL]:      new THREE.Color(0x5588bb), // steel blue
+  [SemanticLabel.CEILING]:   new THREE.Color(0x88aabb), // pale sky
+  [SemanticLabel.DOOR]:      new THREE.Color(0xddaa44), // warm amber
+  [SemanticLabel.WINDOW]:    new THREE.Color(0x44ccdd), // bright cyan
+  [SemanticLabel.SOFA]:      new THREE.Color(0xcc7788), // dusty rose
+  [SemanticLabel.TABLE]:     new THREE.Color(0xcc8855), // copper
+  [SemanticLabel.CHAIR]:     new THREE.Color(0x77aa88), // sage green
+  [SemanticLabel.RUG]:       new THREE.Color(0xaa5566), // burgundy
+  [SemanticLabel.LAMP]:      new THREE.Color(0xddbb44), // gold glow
+  [SemanticLabel.BOOKSHELF]: new THREE.Color(0x449988), // dark teal
+  [SemanticLabel.PAINTING]:  new THREE.Color(0x8866bb), // purple-blue
 };
 
 // Instance caps
-const MAX_OUTLINE_INSTANCES = 4000;   // occupied-only outlines (much fewer than before)
-const MAX_SEMANTIC_INSTANCES = 4000;  // semantic fills
-const MAX_LIDAR_POINTS = 72 * 2;
+const MAX_OUTLINE_INSTANCES = 4000;
+const MAX_SEMANTIC_INSTANCES = 4000;
+const MAX_LIDAR_POINTS = 36 * 2; // rayCount * 2 endpoints
 const MAX_PATH_POINTS = 200;
 
-// Render radius in grid cells — at 0.1m/cell this is 10m, enough
-// to cover the full room and catch distant semantic projections.
+// Render radius in grid cells — at 0.1m/cell this is 10m
 const RENDER_RADIUS = 100;
 
 const _dummy = new THREE.Object3D();
@@ -88,8 +91,6 @@ const _reticleDir = new THREE.Vector3();
 
 /**
  * Create a hollow-square (outline) geometry for a single cell.
- * Uses a Shape with a rectangular hole punched out, producing
- * a thin border when rendered as a flat mesh.
  */
 function makeOutlineGeom(size: number, borderWidth: number): THREE.ShapeGeometry {
   const half = size / 2;
@@ -115,13 +116,12 @@ function makeOutlineGeom(size: number, borderWidth: number): THREE.ShapeGeometry
 
 /**
  * Renders the agent's occupancy grid, LiDAR rays, planned path,
- * and agent marker as Three.js objects inside the R3F Canvas.
+ * and the Curator model as Three.js objects inside the R3F Canvas.
  *
- * Visual strategy:
- *  - OCCUPIED unlabeled cells → thin red outlines (walls/obstacles)
- *  - Semantically labeled cells → bright filled squares (the main visual)
- *  - EMPTY unlabeled cells → not rendered (reduces clutter)
- *  - LiDAR rays + agent marker → same as before
+ * Render order strategy (to work with Gaussian splat renderer):
+ *  - Splats render at default order (~0)
+ *  - Viz (grid, rays, path) at renderOrder 900 with depthTest:false → visible on splat environment
+ *  - Curator model at renderOrder 1000 → draws on top of viz, always visible
  */
 export default function AgentVisualizer() {
   const { enabled, vizDataRef, config, hoveredLabelRef } = useAgent();
@@ -134,12 +134,11 @@ export default function AgentVisualizer() {
   const eyeLightRef = useRef<THREE.PointLight>(null);
   const logCounterRef = useRef(0);
 
-  // Heading tracking for eye direction
-  const prevPosRef = useRef<[number, number]>([0, 0]); // [x, z]
-  const headingRef = useRef(0); // current smoothed Y rotation
+  // Heading tracking — smooth visual heading derived from vizData.heading
+  const visualHeadingRef = useRef(0);
   const bobTimeRef = useRef(0);
 
-  // Load the Curator model and apply emissive boost for even illumination
+  // Load the Curator model — apply emissive boost + high renderOrder
   const { scene: curatorScene } = useGLTF(CURATOR_MODEL_PATH);
   const curatorModel = useMemo(() => {
     const clone = curatorScene.clone(true);
@@ -153,7 +152,12 @@ export default function AgentVisualizer() {
           m.emissive.copy(m.color);
           m.emissiveMap = m.map;
           m.emissiveIntensity = EMISSIVE_INTENSITY;
+          // Move to transparent pass so renderOrder is respected
+          m.transparent = true;
+          m.opacity = 1.0;
         }
+        // High renderOrder so Curator draws on top of viz + splats
+        mesh.renderOrder = CURATOR_RENDER_ORDER;
       }
     });
     return clone;
@@ -167,18 +171,16 @@ export default function AgentVisualizer() {
     () => makeOutlineGeom(cellVisualSize, borderWidth),
     [cellVisualSize, borderWidth],
   );
-  // NOTE: Do NOT use vertexColors:true — ShapeGeometry has no vertex color
-  // attribute, which would zero out the instance colors. Instance colors
-  // (setColorAt) work independently via USE_INSTANCING_COLOR.
   const outlineMat = useMemo(() => new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.45,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: false,
   }), []);
 
-  // Semantic geometry — FILLED square (PlaneGeometry) to be visually distinct from outlines
+  // Semantic geometry — filled square
   const semanticGeom = useMemo(
     () => new THREE.PlaneGeometry(cellVisualSize, cellVisualSize),
     [cellVisualSize],
@@ -186,9 +188,10 @@ export default function AgentVisualizer() {
   const semanticMat = useMemo(() => new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.6,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: false,
   }), []);
 
   const lidarGeom = useMemo(() => {
@@ -202,7 +205,10 @@ export default function AgentVisualizer() {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(MAX_PATH_POINTS * 3), 3));
     g.setDrawRange(0, 0);
-    const mat = new THREE.LineBasicMaterial({ color: COLOR_PATH, transparent: true, opacity: 0.8, depthWrite: false });
+    const mat = new THREE.LineBasicMaterial({
+      color: COLOR_PATH, transparent: true, opacity: 0.7,
+      depthWrite: false, depthTest: false,
+    });
     return new THREE.Line(g, mat);
   }, []);
 
@@ -211,7 +217,7 @@ export default function AgentVisualizer() {
     const data = vizDataRef.current;
     if (!data) return;
 
-    const { agentPos, grid, lidarHits, currentPath } = data;
+    const { agentPos, heading, grid, lidarHits, currentPath } = data;
     const agentY = agentPos[1];
 
     // ── Curator model (always updates when enabled) ──
@@ -219,7 +225,7 @@ export default function AgentVisualizer() {
       bobTimeRef.current += delta;
       const t = bobTimeRef.current;
 
-      // Vertical bob + lateral sway on different frequencies for organic feel
+      // Vertical bob + lateral sway
       const bob = Math.sin(t * BOB_SPEED) * BOB_AMPLITUDE;
       const swayX = Math.sin(t * WOBBLE_SPEED) * WOBBLE_SWAY;
       const swayZ = Math.cos(t * WOBBLE_SPEED * 0.7) * WOBBLE_SWAY;
@@ -230,25 +236,16 @@ export default function AgentVisualizer() {
         agentPos[2] + swayZ,
       );
 
-      // Heading: derive from movement delta
-      const dx = agentPos[0] - prevPosRef.current[0];
-      const dz = agentPos[2] - prevPosRef.current[1];
-      const moveDist = Math.sqrt(dx * dx + dz * dz);
+      // Smooth heading from controller data
+      let diff = heading - visualHeadingRef.current;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      visualHeadingRef.current += diff * Math.min(1, HEADING_LERP * delta);
 
-      if (moveDist > 0.001) {
-        const targetHeading = Math.atan2(dx, dz);
-        let diff = targetHeading - headingRef.current;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        headingRef.current += diff * Math.min(1, HEADING_LERP * delta);
-      }
-
-      // Gentle tilt wobble layered on top of the heading
+      // Gentle tilt wobble
       const tiltX = Math.sin(t * WOBBLE_SPEED * 1.1) * WOBBLE_TILT;
       const tiltZ = Math.cos(t * WOBBLE_SPEED * 0.9) * WOBBLE_TILT;
-      curatorRef.current.rotation.set(tiltX, headingRef.current, tiltZ);
-
-      prevPosRef.current = [agentPos[0], agentPos[2]];
+      curatorRef.current.rotation.set(tiltX, visualHeadingRef.current, tiltZ);
     }
 
     // ── Grid, rays, path ──
@@ -274,7 +271,7 @@ export default function AgentVisualizer() {
           const { wx, wz } = grid.gridToWorld(gx, gz);
           const cellY = grid.getHeight(gx, gz) + 0.02;
 
-          // Semantic labeled cell → bright colored outline (primary visual)
+          // Semantic labeled cell → bright colored fill
           if (
             semantic !== SemanticLabel.NONE &&
             SEMANTIC_COLORS[semantic] &&
@@ -289,7 +286,7 @@ export default function AgentVisualizer() {
             semInst.setColorAt(semCount, _color);
             semCount++;
           }
-          // Occupied unlabeled cell → dim red outline (walls/obstacles)
+          // Occupied unlabeled cell → copper outline
           else if (cell === CellState.OCCUPIED && outlineCount < MAX_OUTLINE_INSTANCES) {
             _dummy.position.set(wx, cellY, wz);
             _dummy.rotation.set(-Math.PI / 2, 0, 0);
@@ -299,7 +296,6 @@ export default function AgentVisualizer() {
             outlineInst.setColorAt(outlineCount, _color);
             outlineCount++;
           }
-          // EMPTY unlabeled → skip entirely (clean floor)
         }
       }
 
@@ -313,12 +309,11 @@ export default function AgentVisualizer() {
         if (semInst.instanceColor) semInst.instanceColor.needsUpdate = true;
       }
 
-      // Log instance counts every ~2 seconds (120 frames at 60fps)
       logCounterRef.current++;
       if (logCounterRef.current >= 120) {
         logCounterRef.current = 0;
         if (semCount > 0 || outlineCount > 0) {
-          console.log(`[viz] rendering: ${outlineCount} outline instances, ${semCount} semantic instances (filled)`);
+          console.log(`[viz] rendering: ${outlineCount} outline instances, ${semCount} semantic instances`);
         }
       }
     }
@@ -329,20 +324,17 @@ export default function AgentVisualizer() {
       const arr = positions.array as Float32Array;
       let idx = 0;
 
-      // Logical origin at the Curator's center
       const originX = agentPos[0];
       const originY = agentY + CURATOR_Y_OFFSET;
       const originZ = agentPos[2];
 
       for (let i = 0; i < lidarHits.length && idx < MAX_LIDAR_POINTS * 3; i++) {
         const hit = lidarHits[i];
-        // Direction from origin to hit
         const rdx = hit.worldX - originX;
         const rdy = hit.worldY - originY;
         const rdz = hit.worldZ - originZ;
         const len = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz);
-        if (len < BODY_RADIUS) continue; // ray too short, skip entirely
-        // Start the visible segment just outside the body
+        if (len < BODY_RADIUS) continue;
         const t = BODY_RADIUS / len;
         arr[idx++] = originX + rdx * t;
         arr[idx++] = originY + rdy * t;
@@ -381,9 +373,7 @@ export default function AgentVisualizer() {
     // ── Semantic label under reticle (center of screen) ──
     camera.getWorldDirection(_reticleDir);
     const ro = camera.position;
-    // Project a ray forward from the camera and check which grid cell it hits on the floor plane
-    // We use the grid's height data to intersect — assume roughly flat ground at agent Y level.
-    const floorY = agentY + CURATOR_Y_OFFSET; // approximate floor
+    const floorY = agentY + CURATOR_Y_OFFSET;
     if (Math.abs(_reticleDir.y) > 0.001) {
       const t = (floorY - ro.y) / _reticleDir.y;
       if (t > 0 && t < 50) {
@@ -408,11 +398,9 @@ export default function AgentVisualizer() {
 
   return (
     <group>
-      {/* The Curator — always visible when enabled */}
+      {/* The Curator — renderOrder 1000 so it draws on top of everything */}
       <group ref={curatorRef}>
-        {/* Fill light — illuminates the model from above-front so it's visible in any scene */}
         <pointLight intensity={FILL_LIGHT_INTENSITY} distance={3} decay={2} position={[0, 1, 0.5]} />
-        {/* Eye glow — positioned at the lens. Animate intensity later for speech. */}
         <pointLight
           ref={eyeLightRef}
           color={EYE_LIGHT_COLOR}
@@ -426,21 +414,23 @@ export default function AgentVisualizer() {
         </group>
       </group>
 
-      {/* Grid, rays, path */}
+      {/* Grid tiles — renderOrder 900 so they draw after splats */}
       <instancedMesh
         ref={outlineRef}
         args={[outlineGeom, outlineMat, MAX_OUTLINE_INSTANCES]}
         frustumCulled={false}
+        renderOrder={VIZ_RENDER_ORDER}
       />
       <instancedMesh
         ref={semanticRef}
         args={[semanticGeom, semanticMat, MAX_SEMANTIC_INSTANCES]}
         frustumCulled={false}
+        renderOrder={VIZ_RENDER_ORDER}
       />
-      <lineSegments ref={lidarRef} geometry={lidarGeom} frustumCulled={false}>
-        <lineBasicMaterial color={COLOR_LIDAR} transparent opacity={0.4} depthWrite={false} />
+      <lineSegments ref={lidarRef} geometry={lidarGeom} frustumCulled={false} renderOrder={VIZ_RENDER_ORDER}>
+        <lineBasicMaterial color={COLOR_LIDAR} transparent opacity={0.5} depthWrite={false} depthTest={false} />
       </lineSegments>
-      <primitive object={pathLine} frustumCulled={false} />
+      <primitive object={pathLine} frustumCulled={false} renderOrder={VIZ_RENDER_ORDER} />
     </group>
   );
 }

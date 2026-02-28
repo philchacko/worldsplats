@@ -9,6 +9,7 @@ export enum AgentState {
   SCANNING = 'SCANNING',
   PLANNING = 'PLANNING',
   MOVING = 'MOVING',
+  EXPLORING = 'EXPLORING',
 }
 
 export type GridCoord = { gx: number; gz: number };
@@ -17,8 +18,9 @@ export type AgentConfig = {
   cellSize: number;           // meters per grid cell (default 0.5)
   gridWidth: number;          // cells in X (default 200 = 100m)
   gridHeight: number;         // cells in Z (default 200 = 100m)
-  lidarRayCount: number;      // rays per scan (default 72 = 5-degree increments)
-  lidarMaxRange: number;      // max ray distance in meters (default 15)
+  lidarRayCount: number;      // rays per scan (default 36)
+  lidarMaxRange: number;      // max ray distance in meters (default 12)
+  lidarFovDeg: number;        // horizontal field of view in degrees (default 120)
   lidarYOffset: number;       // sensor height relative to body center (default 0)
   moveSpeed: number;          // agent walk speed m/s (default 3.0)
   scanInterval: number;       // seconds between scans while moving (default 0.25)
@@ -30,8 +32,9 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   cellSize: 0.1,
   gridWidth: 200,
   gridHeight: 200,
-  lidarRayCount: 72,
-  lidarMaxRange: 15,
+  lidarRayCount: 36,
+  lidarMaxRange: 12,
+  lidarFovDeg: 120,
   lidarYOffset: 0,
   moveSpeed: 3.0,
   scanInterval: 0.25,

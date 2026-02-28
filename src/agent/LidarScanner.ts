@@ -25,21 +25,11 @@ const ELEVATION_COS = ELEVATION_DEG.map(d => Math.cos(d * Math.PI / 180));
 const ELEVATION_SIN = ELEVATION_DEG.map(d => Math.sin(d * Math.PI / 180));
 
 /**
- * Vertical-fan LiDAR sensor.
+ * Vertical-fan LiDAR sensor with limited field of view.
  *
- * For each of N azimuth directions, casts rays at multiple elevation angles
- * and synthesises a single 2D result per azimuth:
- *
- *   1. The closest WALL hit (|normal.y| ≤ 0.7) caps the walkable distance.
- *   2. Floor hits (horizontal surface BELOW the sensor) and misses extend
- *      the known-clear area.
- *   3. Ceiling hits (horizontal surface ABOVE the sensor) are ignored.
- *
- * Classification uses hit-point Y relative to the sensor, not normal direction,
- * so it works correctly regardless of triangle winding / collider rotation.
- *
- * Each hit includes a worldY (floor height at the endpoint) for surface-following
- * visualization. Also provides agentFloorY via a downward probe.
+ * Casts rays within a horizontal FOV cone centered on the agent's heading.
+ * For each of N azimuth directions within the cone, casts rays at multiple
+ * elevation angles and synthesises a single 2D result per azimuth.
  *
  * Returns exactly `rayCount` LidarHit entries (one per azimuth).
  * Total raycasts = rayCount × len(ELEVATION_DEG) + 1 (floor probe).
@@ -47,6 +37,7 @@ const ELEVATION_SIN = ELEVATION_DEG.map(d => Math.sin(d * Math.PI / 180));
 export class LidarScanner {
   private rayCount: number;
   private maxRange: number;
+  private fovRad: number;
   private yOffset: number;
   private noiseStdDev: number;
 
@@ -56,21 +47,28 @@ export class LidarScanner {
   constructor(config: AgentConfig) {
     this.rayCount = config.lidarRayCount;
     this.maxRange = config.lidarMaxRange;
+    this.fovRad = config.lidarFovDeg * Math.PI / 180;
     this.yOffset = config.lidarYOffset;
     this.noiseStdDev = config.noiseStdDev;
   }
 
+  /**
+   * @param heading Agent's facing direction in radians (0 = +Z, PI/2 = +X).
+   */
   scan(
     rapier: typeof RAPIER,
     world: RAPIER.World,
     posX: number, posY: number, posZ: number,
+    heading: number,
   ): LidarHit[] {
     const hits: LidarHit[] = [];
     const sensorY = posY + this.yOffset;
-    const angleStep = (2 * Math.PI) / this.rayCount;
+
+    // Distribute rays evenly across the FOV centered on heading
+    const angleStep = this.fovRad / this.rayCount;
+    const startAngle = heading - this.fovRad / 2;
 
     // ── Downward probe: find floor Y directly below the agent ─────────
-    // Start from just below the sensor to skip the ceiling.
     const probeRay = new rapier.Ray(
       { x: posX, y: sensorY, z: posZ },
       { x: 0, y: -1, z: 0 },
@@ -85,7 +83,7 @@ export class LidarScanner {
 
     // ── Per-azimuth vertical fan ──────────────────────────────────────
     for (let i = 0; i < this.rayCount; i++) {
-      const azimuth = i * angleStep;
+      const azimuth = startAngle + (i + 0.5) * angleStep;
       const sinAz = Math.sin(azimuth);
       const cosAz = Math.cos(azimuth);
 
@@ -125,7 +123,6 @@ export class LidarScanner {
             }
           } else if (hitY < sensorY) {
             // Horizontal surface BELOW sensor → floor (walkable)
-            // Uses position, not normal direction, so it's rotation-agnostic.
             if (horizDist > farthestClearDist) {
               farthestClearDist = horizDist;
               floorY = hitY;

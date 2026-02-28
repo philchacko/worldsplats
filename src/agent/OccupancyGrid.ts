@@ -149,6 +149,78 @@ export class OccupancyGrid {
     }
   }
 
+  /**
+   * Find a good exploration target — the direction with the most frontier cells
+   * (UNKNOWN cells adjacent to EMPTY/OCCUPIED). Returns [wx, wz] or null.
+   */
+  findExplorationTarget(agentWx: number, agentWz: number, maxDist: number): [number, number] | null {
+    const ag = this.worldToGrid(agentWx, agentWz);
+    const maxCells = Math.ceil(maxDist / this.cellSize);
+
+    // Count frontier cells in 8 angular sectors
+    const SECTORS = 8;
+    const counts = new Array(SECTORS).fill(0);
+    const sumGx = new Array(SECTORS).fill(0);
+    const sumGz = new Array(SECTORS).fill(0);
+
+    const minGx = Math.max(0, ag.gx - maxCells);
+    const maxGx = Math.min(this.width - 1, ag.gx + maxCells);
+    const minGz = Math.max(0, ag.gz - maxCells);
+    const maxGz = Math.min(this.height - 1, ag.gz + maxCells);
+
+    for (let gz = minGz; gz <= maxGz; gz++) {
+      for (let gx = minGx; gx <= maxGx; gx++) {
+        const idx = gz * this.width + gx;
+        if (this.cells[idx] !== CellState.UNKNOWN) continue;
+
+        // Must be adjacent to a known cell (frontier edge)
+        if (!this._isFrontier(gx, gz)) continue;
+
+        const dx = gx - ag.gx;
+        const dz = gz - ag.gz;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 3 || dist > maxCells) continue;
+
+        const angle = Math.atan2(dx, dz); // -PI to PI
+        const sector = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * SECTORS) % SECTORS;
+        counts[sector]++;
+        sumGx[sector] += gx;
+        sumGz[sector] += gz;
+      }
+    }
+
+    // Pick sector with most frontier cells
+    let best = -1, bestCount = 0;
+    for (let i = 0; i < SECTORS; i++) {
+      if (counts[i] > bestCount) {
+        bestCount = counts[i];
+        best = i;
+      }
+    }
+
+    if (best < 0 || bestCount < 5) return null;
+
+    // Target is the centroid of frontier cells in that sector
+    const cx = sumGx[best] / counts[best];
+    const cz = sumGz[best] / counts[best];
+    const { wx, wz } = this.gridToWorld(Math.round(cx), Math.round(cz));
+    return [wx, wz];
+  }
+
+  /** Check if a cell is on the frontier (UNKNOWN but adjacent to known). */
+  private _isFrontier(gx: number, gz: number): boolean {
+    const offsets = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const [dx, dz] of offsets) {
+      const nx = gx + dx;
+      const nz = gz + dz;
+      if (nx >= 0 && nx < this.width && nz >= 0 && nz < this.height) {
+        const state = this.cells[nz * this.width + nx];
+        if (state === CellState.EMPTY || state === CellState.OCCUPIED) return true;
+      }
+    }
+    return false;
+  }
+
   /** Reset all cells to UNKNOWN and clear semantic labels. */
   reset(): void {
     this.cells.fill(CellState.UNKNOWN);

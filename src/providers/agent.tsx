@@ -10,6 +10,7 @@ import { splashSegmentation } from '@/agent/semanticSplash';
 /** Data written each frame by AgentController, read by AgentVisualizer. */
 export type VizData = {
   agentPos: [number, number, number];
+  heading: number;
   state: AgentState;
   lidarHits: LidarHit[] | null;
   currentPath: [number, number][] | null;

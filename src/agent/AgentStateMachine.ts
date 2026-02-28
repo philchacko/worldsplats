@@ -36,6 +36,7 @@ export class AgentStateMachine {
   private lastPos: [number, number] = [0, 0];
   private lastLidarHits: LidarHit[] | null = null;
   private targetFrontier: [number, number] | null = null;
+  private heading = 0; // current facing direction (radians)
 
   // Track how many consecutive planning failures to avoid infinite loops
   private planFailCount = 0;
@@ -113,7 +114,7 @@ export class AgentStateMachine {
     posX: number, posY: number, posZ: number,
   ): AgentTickResult {
     // Cast LiDAR rays and update grid
-    const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
+    const hits = this.scanner.scan(rapier, world, posX, posY, posZ, this.heading);
     this.lastLidarHits = hits;
     const agentFloorY = this.scanner.agentFloorY;
 
@@ -201,7 +202,7 @@ export class AgentStateMachine {
     this.scanTimer += dt;
     if (this.scanTimer >= this.config.scanInterval) {
       this.scanTimer = 0;
-      const hits = this.scanner.scan(rapier, world, posX, posY, posZ);
+      const hits = this.scanner.scan(rapier, world, posX, posY, posZ, this.heading);
       this.lastLidarHits = hits;
       const agentFloorY = this.scanner.agentFloorY;
       for (const hit of hits) {
@@ -245,6 +246,11 @@ export class AgentStateMachine {
         this.currentPath = null;
         return this.result(0, 0);
       }
+    }
+
+    // Update heading to face waypoint
+    if (dist > 0.01) {
+      this.heading = Math.atan2(dx, dz);
     }
 
     // Velocity toward waypoint (normalized * speed)
