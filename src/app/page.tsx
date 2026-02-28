@@ -126,7 +126,7 @@ function OverlayUI({
         <p className="text-xs text-secondary">
           Movement: W/A/S/D + mouse. Shift to sprint. Space to jump.
           <br />
-          Navigation: ←/→ or Q/E. V for vision scan. Esc to exit.
+          Navigation: ←/→ or Q/E. V for vision scan. F to direct agent. Esc to exit.
         </p>
 
         <Divider />
@@ -317,10 +317,10 @@ function PageContent() {
       {/* Reticle + loading overlays + mute button */}
       <RootUIOverlays isLoading={isLoading} loadError={loadError} />
 
-      {/* Agent HUD - bottom-left */}
-      <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
+      {/* Agent HUD - bottom-left (hidden — enable for debugging) */}
+      {/* <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
         <AgentHud />
-      </div>
+      </div> */}
 
       {/* Curator ambient sounds */}
       <CuratorAudio />
