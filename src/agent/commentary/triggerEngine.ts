@@ -24,6 +24,18 @@ const LABEL_NAMES: Record<number, string> = {
   [SemanticLabel.PAINTING]: 'painting',
 };
 
+/** Interesting labels (furniture/decor) — excludes structural ones. */
+const INTERESTING_LABELS = new Set([
+  'door', 'window', 'sofa', 'table', 'chair',
+  'rug', 'lamp', 'bookshelf', 'painting',
+]);
+
+/** Minimum cell growth from a single deep scan to trigger a "significant growth" comment. */
+const SIGNIFICANT_CELL_GROWTH = 80;
+
+/** Minimum distinct interesting objects nearby to fire a semantic_cluster trigger. */
+const MIN_CLUSTER_SIZE = 3;
+
 /** Input snapshot for the trigger engine. */
 export type TriggerInput = {
   vizData: VizData;
@@ -52,6 +64,12 @@ export class CommentaryTriggerEngine {
   private wasIdle = false;
   private milestonesCrossed = new Set<number>();
 
+  /** Total tagged cells at last deep scan (for detecting significant growth). */
+  private lastTotalTagged = 0;
+
+  /** The nearby-object set we last commented about (serialised). */
+  private lastCommentedCluster = '';
+
   constructor() {
     this.enabledAt = Date.now();
   }
@@ -67,6 +85,8 @@ export class CommentaryTriggerEngine {
     this.idleStartTime = 0;
     this.wasIdle = false;
     this.milestonesCrossed.clear();
+    this.lastTotalTagged = 0;
+    this.lastCommentedCluster = '';
   }
 
   /** Called after narration finishes to update cooldown tracking. */
@@ -98,15 +118,16 @@ export class CommentaryTriggerEngine {
       this.idleStartTime = 0;
     }
 
-    // Gather nearby objects (within ~3m = 30 cells at 0.1m/cell)
-    const nearbyObjects = this.getNearbyObjects(grid, vizData.agentPos[0], vizData.agentPos[2], 30);
+    // Gather nearby objects with per-label cell counts (within ~3m = 30 cells)
+    const nearbyDetail = this.getNearbyObjectsDetailed(grid, vizData.agentPos[0], vizData.agentPos[2], 30);
+    const nearbyObjects = Object.keys(nearbyDetail);
 
     // Exploration percentage
     const stats = grid.stats();
     const totalCells = grid.width * grid.height;
     const explorationPercent = (stats.totalKnown / totalCells) * 100;
 
-    // Base context builder
+    // Base context builder — now includes nearby cell counts
     const makeContext = (triggerReason: string, recentDiscoveries: string[] = []): CommentaryContext => ({
       worldName,
       worldGuide,
@@ -117,6 +138,7 @@ export class CommentaryTriggerEngine {
       totalObjectsFound: { ...totalObjects },
       previousComments,
       triggerReason,
+      nearbyObjectCounts: nearbyDetail,
     });
 
     // ── Check triggers in priority order ──
@@ -137,7 +159,7 @@ export class CommentaryTriggerEngine {
       }
     }
 
-    // 2. Deep scan complete (priority 8) — new labels appeared
+    // 2. Deep scan complete (priority 8) — new labels OR significant cell growth
     if (deepScanSignal > this.lastDeepScanSignal) {
       this.lastDeepScanSignal = deepScanSignal;
 
@@ -150,25 +172,81 @@ export class CommentaryTriggerEngine {
           if (lastSplash.perLabel[k] > 0) this.lastSplashLabels.add(k);
         }
 
+        // Calculate cell growth since last scan
+        const cellGrowth = lastSplash.totalTagged;
+        const significantGrowth = cellGrowth >= SIGNIFICANT_CELL_GROWTH;
+
+        // Determine the most prominent objects in this scan
+        const scanBreakdown = Object.entries(lastSplash.perLabel)
+          .filter(([, v]) => v > 0)
+          .sort(([, a], [, b]) => b - a)
+          .map(([k, v]) => `${k} (${v} cells)`);
+
         if (newLabels.length > 0) {
+          // New labels discovered — highest priority scan event
           const event: CommentaryEvent = {
             type: 'deep_scan_complete',
             priority: 8,
             context: makeContext(
-              `Deep scan revealed new objects: ${newLabels.join(', ')}`,
+              `Deep scan revealed new objects: ${newLabels.join(', ')}. Scan breakdown: ${scanBreakdown.join(', ')}`,
               newLabels,
             ),
             timestamp: now,
           };
           if (this.shouldEmit(event)) {
             this.lastCommentPos = [vizData.agentPos[0], vizData.agentPos[2]];
+            this.lastTotalTagged += cellGrowth;
             return event;
           }
+        } else if (significantGrowth) {
+          // No new labels, but lots of cells were tagged — scanner found more of what we know
+          const topLabels = scanBreakdown.slice(0, 3);
+          const event: CommentaryEvent = {
+            type: 'deep_scan_complete',
+            priority: 6,
+            context: makeContext(
+              `Deep scan tagged ${cellGrowth} cells — mostly ${topLabels.join(', ')}. The space is filling out.`,
+            ),
+            timestamp: now,
+          };
+          if (this.shouldEmit(event)) {
+            this.lastCommentPos = [vizData.agentPos[0], vizData.agentPos[2]];
+            this.lastTotalTagged += cellGrowth;
+            return event;
+          }
+        }
+
+        this.lastTotalTagged += cellGrowth;
+      }
+    }
+
+    // 3. Semantic cluster (priority 7) — 3+ distinct interesting objects nearby
+    {
+      const interestingNearby = nearbyObjects.filter((k) => INTERESTING_LABELS.has(k));
+      const clusterKey = interestingNearby.sort().join(',');
+
+      if (
+        interestingNearby.length >= MIN_CLUSTER_SIZE &&
+        clusterKey !== this.lastCommentedCluster
+      ) {
+        const event: CommentaryEvent = {
+          type: 'semantic_cluster',
+          priority: 7,
+          context: makeContext(
+            `Surrounded by an interesting cluster of objects: ${interestingNearby.join(', ')}`,
+            interestingNearby,
+          ),
+          timestamp: now,
+        };
+        if (this.shouldEmit(event)) {
+          this.lastCommentPos = [vizData.agentPos[0], vizData.agentPos[2]];
+          this.lastCommentedCluster = clusterKey;
+          return event;
         }
       }
     }
 
-    // 3. Exploration milestone (priority 6) — crossing 25%, 50%, 75%
+    // 4. Exploration milestone (priority 6) — crossing 25%, 50%, 75%
     for (const threshold of [25, 50, 75]) {
       if (explorationPercent >= threshold && !this.milestonesCrossed.has(threshold)) {
         this.milestonesCrossed.add(threshold);
@@ -185,7 +263,7 @@ export class CommentaryTriggerEngine {
       }
     }
 
-    // 4. New area entered (priority 5) — moved >3m from last comment position
+    // 5. New area entered (priority 5) — moved >3m from last comment position
     const dx = vizData.agentPos[0] - this.lastCommentPos[0];
     const dz = vizData.agentPos[2] - this.lastCommentPos[1];
     const distFromLastComment = Math.sqrt(dx * dx + dz * dz);
@@ -203,7 +281,7 @@ export class CommentaryTriggerEngine {
       }
     }
 
-    // 5. Idle observation (priority 3) — idle 15+ seconds
+    // 6. Idle observation (priority 3) — idle 15+ seconds
     if (this.wasIdle && now - this.idleStartTime > 15_000 && nearbyObjects.length > 0) {
       this.idleStartTime = now; // reset so it doesn't fire every tick
       const event: CommentaryEvent = {
@@ -242,10 +320,18 @@ export class CommentaryTriggerEngine {
     return true;
   }
 
-  /** Find distinct semantic labels near the agent position. */
-  private getNearbyObjects(grid: OccupancyGrid, wx: number, wz: number, radius: number): string[] {
+  /**
+   * Find distinct semantic labels near the agent with per-label cell counts.
+   * Excludes floor/ceiling/wall — they're structural and not interesting for commentary.
+   */
+  private getNearbyObjectsDetailed(
+    grid: OccupancyGrid,
+    wx: number,
+    wz: number,
+    radius: number,
+  ): Record<string, number> {
     const center = grid.worldToGrid(wx, wz);
-    const found = new Set<string>();
+    const counts: Record<string, number> = {};
     const minGx = Math.max(0, center.gx - radius);
     const maxGx = Math.min(grid.width - 1, center.gx + radius);
     const minGz = Math.max(0, center.gz - radius);
@@ -255,15 +341,16 @@ export class CommentaryTriggerEngine {
       for (let gx = minGx; gx <= maxGx; gx++) {
         const sem = grid.getSemantic(gx, gz);
         if (sem !== SemanticLabel.NONE && LABEL_NAMES[sem]) {
-          found.add(LABEL_NAMES[sem]);
+          const name = LABEL_NAMES[sem];
+          counts[name] = (counts[name] ?? 0) + 1;
         }
       }
     }
 
-    // Exclude floor/ceiling/wall — they're everywhere and not interesting
-    found.delete('floor');
-    found.delete('ceiling');
-    found.delete('wall');
-    return Array.from(found);
+    // Exclude floor/ceiling/wall — they're everywhere
+    delete counts['floor'];
+    delete counts['ceiling'];
+    delete counts['wall'];
+    return counts;
   }
 }

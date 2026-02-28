@@ -5,6 +5,7 @@ import type { AgentState } from '../types';
 export type CommentaryEventType =
   | 'world_first_look'
   | 'deep_scan_complete'
+  | 'semantic_cluster'
   | 'exploration_milestone'
   | 'new_area_entered'
   | 'idle_observation';
@@ -22,6 +23,8 @@ export type CommentaryContext = {
   recentDiscoveries: string[];
   /** Cumulative per-label cell counts (all scans). */
   totalObjectsFound: Record<string, number>;
+  /** Per-label cell counts of objects within ~3m of the agent (nearby density). */
+  nearbyObjectCounts?: Record<string, number>;
   /** Last 3 comments for continuity/variety. */
   previousComments: string[];
   /** Human-readable reason this event was triggered. */

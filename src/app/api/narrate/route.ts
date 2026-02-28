@@ -28,15 +28,27 @@ function buildPrompt(ctx: CommentaryContext): string {
   parts.push(`Exploration progress: ${ctx.explorationPercent.toFixed(0)}% mapped`);
   parts.push(`Current state: ${ctx.agentState}`);
 
-  if (ctx.nearbyObjects.length > 0) {
+  // Nearby objects with density info — higher cell counts = more prominent objects
+  if (ctx.nearbyObjectCounts && Object.keys(ctx.nearbyObjectCounts).length > 0) {
+    const sorted = Object.entries(ctx.nearbyObjectCounts)
+      .sort(([, a], [, b]) => b - a);
+    const detail = sorted.map(([k, v]) => {
+      if (v > 100) return `${k} (dominant, ${v} cells)`;
+      if (v > 30) return `${k} (prominent, ${v} cells)`;
+      return `${k} (${v} cells)`;
+    });
+    parts.push(`Objects near you (by scanner density): ${detail.join(', ')}`);
+  } else if (ctx.nearbyObjects.length > 0) {
     parts.push(`Objects near you: ${ctx.nearbyObjects.join(', ')}`);
   }
+
   if (ctx.recentDiscoveries.length > 0) {
     parts.push(`Just discovered: ${ctx.recentDiscoveries.join(', ')}`);
   }
   if (Object.keys(ctx.totalObjectsFound).length > 0) {
     const summary = Object.entries(ctx.totalObjectsFound)
       .filter(([, v]) => v > 0)
+      .sort(([, a], [, b]) => b - a)
       .map(([k, v]) => `${k}(${v} cells)`)
       .join(', ');
     if (summary) parts.push(`All objects found so far: ${summary}`);
@@ -47,7 +59,7 @@ function buildPrompt(ctx: CommentaryContext): string {
     parts.push(`Your recent remarks (don't repeat these): ${ctx.previousComments.join(' | ')}`);
   }
 
-  parts.push(`Make a brief, in-character observation (1-3 sentences).`);
+  parts.push(`Make a brief, in-character observation (1-3 sentences). Focus on the specific objects your scanner has picked up — comment on their placement, style, condition, or how they relate to each other.`);
 
   return parts.join('\n');
 }
