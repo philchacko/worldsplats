@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Google SA credentials (written at build time, never committed)
+google-sa-credentials.json
+
 # vercel
 .vercel
 

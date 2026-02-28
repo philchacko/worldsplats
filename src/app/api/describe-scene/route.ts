@@ -4,8 +4,9 @@
  *
  * Auth:
  * - Local dev: `gcloud auth application-default login` (ADC)
- * - Netlify / serverless: set GOOGLE_SA_KEY_BASE64 env var with the
- *   base64-encoded service account JSON key.
+ * - Netlify / serverless: GOOGLE_SA_KEY_BASE64 is decoded at build time by
+ *   scripts/write-google-credentials.js → google-sa-credentials.json,
+ *   bundled via outputFileTracingIncludes in next.config.ts.
  *
  * Required env: GOOGLE_CLOUD_PROJECT
  * Optional: GOOGLE_CLOUD_LOCATION (defaults to us-central1)
@@ -14,18 +15,13 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 
-// Materialize service account credentials from base64 env var (serverless)
-if (process.env.GOOGLE_SA_KEY_BASE64 && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  try {
-    const credentialsJson = Buffer.from(
-      process.env.GOOGLE_SA_KEY_BASE64,
-      'base64',
-    ).toString('utf-8');
-    const tempFilePath = path.join('/tmp', 'google-credentials.json');
-    fs.writeFileSync(tempFilePath, credentialsJson);
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = tempFilePath;
-  } catch (err) {
-    console.error('[describe-scene] Failed to process Google Cloud credentials:', err);
+// Point ADC at the bundled service account key (written at build time).
+// The file lives at the project root and is included in the standalone output
+// via outputFileTracingIncludes in next.config.ts.
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  const bundledPath = path.join(process.cwd(), 'google-sa-credentials.json');
+  if (fs.existsSync(bundledPath)) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = bundledPath;
   }
 }
 
