@@ -103,7 +103,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const triggerDeepScan = useCallback(async (concepts?: string[]) => {
     const ctx = r3fRef.current;
     if (!ctx) throw new Error('R3F context not available — is the Canvas mounted?');
-    deepScanSignalRef.current++;
     const result = await segmentScene(ctx.gl, ctx.scene, ctx.camera, concepts ?? DEFAULT_CONCEPTS);
     console.log(
       `[DeepScan] ${result.masks.length} masks:`,
@@ -126,6 +125,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const triggerSceneDescription = useCallback(async (worldName?: string) => {
     const ctx = r3fRef.current;
     if (!ctx) throw new Error('R3F context not available — is the Canvas mounted?');
+
+    // Signal audio SFX (deep scan sound plays on Gemini vision, not SAM-3)
+    deepScanSignalRef.current++;
 
     const imageBase64 = captureSnapshot(ctx.gl, ctx.scene, ctx.camera);
     console.log('[SceneDescription] captured screenshot, sending to Gemini...');

@@ -124,9 +124,9 @@ function OverlayUI({
         </label>
 
         <p className="text-xs text-secondary">
-          Movement: W/A/S/D + mouse.
+          Movement: W/A/S/D + mouse. Shift to sprint. Space to jump.
           <br />
-          Navigation: ←/→ or Q/E.
+          Navigation: ←/→ or Q/E. V for vision scan. Esc to exit.
         </p>
 
         <Divider />
@@ -337,7 +337,26 @@ function PageContent() {
       {/* Mobile controls */}
       <MobileHud mobileInputRef={mobileInputRef} />
 
-      {/* keyboard shortcuts */}
+      {/* ─── Keyboard shortcuts ──────────────────────────────────
+       * Movement (PlayerController):
+       *   W / A / S / D       — Move forward / left / backward / right
+       *   Shift               — Sprint
+       *   Space               — Jump
+       *   Mouse               — Look around (pointer lock)
+       *
+       * World navigation (WorldNavigationHotkeys):
+       *   ← or Q              — Previous world
+       *   → or E              — Next world
+       *
+       * Actions (ShootHotkey, PlayerController, AgentController):
+       *   Space               — Shoot projectile
+       *   F                   — Command agent to move to look target
+       *   V                   — Manual Gemini vision scan
+       *   P                   — Debug: print player position & yaw/pitch
+       *
+       * System:
+       *   Esc                 — Exit pointer lock (return to menu)
+       * ──────────────────────────────────────────────────────── */}
       <ShootHotkey shootRef={shootRef} />
       <WorldNavigationHotkeys onBack={handleBack} onForward={handleForward} />
     </div>

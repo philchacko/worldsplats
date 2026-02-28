@@ -9,6 +9,8 @@ export class TTSPlayer {
   private speechGain: GainNode;
   private _speaking = false;
   private abortController: AbortController | null = null;
+  /** Currently-playing source node — tracked so cancel() can stop mid-sentence audio. */
+  private activeSource: AudioBufferSourceNode | null = null;
 
   constructor(audioContext: AudioContext, masterGain: GainNode) {
     this.audioContext = audioContext;
@@ -32,8 +34,12 @@ export class TTSPlayer {
     source.buffer = buffer;
     source.connect(this.speechGain);
 
+    this.activeSource = source;
     return new Promise<void>((resolve) => {
-      source.onended = () => resolve();
+      source.onended = () => {
+        if (this.activeSource === source) this.activeSource = null;
+        resolve();
+      };
       source.start();
     });
   }
@@ -89,9 +95,14 @@ export class TTSPlayer {
     }
   }
 
-  /** Cancel any in-flight speech. */
+  /** Cancel any in-flight speech and stop audio that's currently playing. */
   cancel(): void {
     this.abortController?.abort();
+    // Stop the active audio source mid-playback so narration cuts immediately
+    if (this.activeSource) {
+      try { this.activeSource.stop(); } catch { /* already stopped */ }
+      this.activeSource = null;
+    }
   }
 
   dispose(): void {

@@ -67,8 +67,11 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
     };
   }, [audioReady, audioContext, masterGain]);
 
-  // Cancel in-flight speech and clear narration state on world switch
+  // Cancel in-flight speech and clear narration state on world switch.
+  // cancel() is called both in the effect body (immediate on new world)
+  // AND in cleanup (covers unmount / re-render edge cases).
   useEffect(() => {
+    ttsPlayerRef.current?.cancel();
     narrationStateRef.current = { speaking: false, lastCommentTime: 0 };
     narrationTextRef.current = '';
     return () => {
