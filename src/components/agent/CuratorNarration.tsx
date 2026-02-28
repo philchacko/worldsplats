@@ -37,17 +37,19 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
 
   const voiceId = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID ?? '';
 
-  // Reset trigger engine when enabled changes or world changes
+  // Reset trigger engine and all narration context when enabled changes or world changes
   useEffect(() => {
     if (!enabled) {
       triggerEngineRef.current = null;
       previousCommentsRef.current = [];
       totalObjectsRef.current = {};
+      sceneDescriptionRef.current = '';
       return;
     }
     triggerEngineRef.current = new CommentaryTriggerEngine();
     previousCommentsRef.current = [];
     totalObjectsRef.current = {};
+    sceneDescriptionRef.current = '';
   }, [enabled, world.id]);
 
   // Initialize/dispose TTS player with AudioContext
@@ -64,8 +66,9 @@ export default function CuratorNarration({ world }: { world: WorldDef }) {
     };
   }, [audioReady, audioContext, masterGain]);
 
-  // Cancel speech on world switch
+  // Cancel in-flight speech and clear narration state on world switch
   useEffect(() => {
+    narrationStateRef.current = { speaking: false, lastCommentTime: 0 };
     return () => {
       ttsPlayerRef.current?.cancel();
     };

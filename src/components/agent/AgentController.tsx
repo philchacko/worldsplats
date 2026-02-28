@@ -20,10 +20,10 @@ const DRIFT2_FREQUENCY = 0.17;
 const MAX_RANGE = 12;
 
 /** How often to auto-trigger a deep scan (seconds). */
-const DEEP_SCAN_INTERVAL = 20;
+const DEEP_SCAN_INTERVAL = 7;
 
 /** How often to auto-trigger a Gemini scene description (seconds). */
-const SCENE_DESCRIBE_INTERVAL = 45;
+const SCENE_DESCRIBE_INTERVAL = 15;
 /** Delay after enabling before first scene description (seconds). */
 const SCENE_DESCRIBE_INITIAL_DELAY = 4;
 
@@ -47,7 +47,7 @@ const IDLE_ROTATE_SPEED = 0.5;
  */
 export default function AgentController({ worldName }: { worldName?: string }) {
   const { world, rapier, playerBody } = useRapierWorld();
-  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan, triggerSceneDescription } = useAgent();
+  const { enabled, config, vizDataRef, commandTargetRef, clearCommand, gridRef, triggerDeepScan, triggerSceneDescription, lastSplashRef, sceneDescriptionRef } = useAgent();
 
   const posRef = useRef(new THREE.Vector3());
   const scannerRef = useRef<LidarScanner | null>(null);
@@ -116,6 +116,10 @@ export default function AgentController({ worldName }: { worldName?: string }) {
     sceneDescribeInFlightRef.current = false;
     stateRef.current = AgentState.IDLE;
     initializedRef.current = true;
+
+    // Clear stale data from previous world
+    lastSplashRef.current = null;
+    sceneDescriptionRef.current = '';
 
     return () => {
       scannerRef.current = null;
