@@ -85,6 +85,10 @@ const MAX_PATH_POINTS = 200;
 // Render radius in grid cells — at 0.1m/cell this is 10m
 const RENDER_RADIUS = 100;
 
+/** How many grid cells around the reticle hit to search for a semantic label.
+ *  At 0.1m/cell, 6 cells = 0.6m radius — forgiving without being too loose. */
+const RETICLE_SEARCH_RADIUS = 6;
+
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
 const _reticleDir = new THREE.Vector3();
@@ -370,27 +374,39 @@ export default function AgentVisualizer() {
       pathGeom.setDrawRange(0, 0);
     }
 
-    // ── Semantic label under reticle (center of screen) ──
+    // ── Semantic label under reticle (wide search radius around center) ──
     camera.getWorldDirection(_reticleDir);
     const ro = camera.position;
     const floorY = agentY + CURATOR_Y_OFFSET;
+    hoveredLabelRef.current = null;
     if (Math.abs(_reticleDir.y) > 0.001) {
       const t = (floorY - ro.y) / _reticleDir.y;
       if (t > 0 && t < 50) {
         const hitX = ro.x + _reticleDir.x * t;
         const hitZ = ro.z + _reticleDir.z * t;
         const gc = grid.worldToGrid(hitX, hitZ);
-        if (grid.inBounds(gc.gx, gc.gz)) {
-          const sem = grid.getSemantic(gc.gx, gc.gz);
-          hoveredLabelRef.current = (sem !== SemanticLabel.NONE && LABEL_NAMES[sem]) || null;
-        } else {
-          hoveredLabelRef.current = null;
+        // Search a radius of cells around the hit point for the nearest label
+        const R = RETICLE_SEARCH_RADIUS;
+        let bestSem = SemanticLabel.NONE;
+        let bestDist = Infinity;
+        for (let dz = -R; dz <= R; dz++) {
+          for (let dx = -R; dx <= R; dx++) {
+            const cx = gc.gx + dx;
+            const cz = gc.gz + dz;
+            if (!grid.inBounds(cx, cz)) continue;
+            const sem = grid.getSemantic(cx, cz);
+            if (sem === SemanticLabel.NONE) continue;
+            const d = dx * dx + dz * dz;
+            if (d < bestDist) {
+              bestDist = d;
+              bestSem = sem;
+            }
+          }
         }
-      } else {
-        hoveredLabelRef.current = null;
+        if (bestSem !== SemanticLabel.NONE && LABEL_NAMES[bestSem]) {
+          hoveredLabelRef.current = LABEL_NAMES[bestSem];
+        }
       }
-    } else {
-      hoveredLabelRef.current = null;
     }
   });
 
