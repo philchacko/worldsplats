@@ -1,11 +1,33 @@
 /**
- * Scene description API route — sends a screenshot to Gemini 3.1 Flash Image
- * via Vertex AI and returns a rich natural-language description of the scene.
+ * Scene description API route — sends a screenshot to Gemini via Vertex AI
+ * and returns a rich natural-language description of the scene.
  *
- * Uses Application Default Credentials (ADC) for Vertex AI auth.
- * Requires: GOOGLE_CLOUD_PROJECT, optionally GOOGLE_CLOUD_LOCATION.
+ * Auth:
+ * - Local dev: `gcloud auth application-default login` (ADC)
+ * - Netlify / serverless: set GOOGLE_SA_KEY_BASE64 env var with the
+ *   base64-encoded service account JSON key.
+ *
+ * Required env: GOOGLE_CLOUD_PROJECT
+ * Optional: GOOGLE_CLOUD_LOCATION (defaults to us-central1)
  */
 import { GoogleGenAI } from '@google/genai';
+import path from 'path';
+import fs from 'fs';
+
+// Materialize service account credentials from base64 env var (serverless)
+if (process.env.GOOGLE_SA_KEY_BASE64 && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  try {
+    const credentialsJson = Buffer.from(
+      process.env.GOOGLE_SA_KEY_BASE64,
+      'base64',
+    ).toString('utf-8');
+    const tempFilePath = path.join('/tmp', 'google-credentials.json');
+    fs.writeFileSync(tempFilePath, credentialsJson);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tempFilePath;
+  } catch (err) {
+    console.error('[describe-scene] Failed to process Google Cloud credentials:', err);
+  }
+}
 
 const MODEL_ID = 'gemini-3.1-flash-image-preview';
 
